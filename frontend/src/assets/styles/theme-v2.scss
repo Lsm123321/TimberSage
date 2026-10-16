@@ -1,0 +1,239 @@
+html[data-theme='v2'] {
+  /* 水墨风：墨黑底 + 宣纸白字 + 暖金点缀 */
+  --v2-bg-0: #04060b; /* 墨色底 */
+  --v2-bg-1: rgba(8, 12, 20, 0.90);
+  --v2-glass: rgba(255, 255, 255, 0.072);
+  --v2-glass-strong: rgba(255, 255, 255, 0.106);
+  --v2-border: rgba(255, 255, 255, 0.16);
+  --v2-text: rgba(252, 250, 246, 0.98);
+  --v2-text-dim: rgba(248, 245, 238, 0.84);
+  --v2-muted: rgba(241, 236, 226, 0.72);
+  --v2-gold: #d2b06f; /* 暖金更“器物感” */
+  --v2-vermillion: #a93a30; /* 朱砂更内敛 */
+  --v2-cyan: #5fc7b8; /* 青釉绿（由偏蓝改为偏青绿） */
+  --v2-shadow: 0 22px 70px rgba(0, 0, 0, 0.52);
+  --v2-shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.25);
+  --v2-radius-xl: 26px;
+  --v2-radius-lg: 18px;
+  --v2-radius-md: 14px;
+  --v2-ease: cubic-bezier(.2,.9,.2,1);
+
+  /* V2 下 Element Plus 主色同步为暖金 */
+  --el-color-primary: var(--v2-gold);
+  --el-color-primary-light-3: #dcc191;
+  --el-color-primary-light-5: #e6d1ae;
+  --el-color-primary-light-7: #f0e2cb;
+  --el-color-primary-light-8: #f6ede0;
+  --el-color-primary-light-9: #fbf6ee;
+  --el-color-primary-dark-2: #b48f52;
+}
+
+html[data-theme='v2'] body {
+  background:
+    radial-gradient(1200px 820px at 18% 12%, rgba(210, 176, 111, 0.24), transparent 58%),
+    radial-gradient(920px 740px at 82% 10%, rgba(169, 58, 48, 0.18), transparent 58%),
+    radial-gradient(980px 980px at 60% 84%, rgba(95, 199, 184, 0.16), transparent 62%),
+    linear-gradient(165deg, #02040a 0%, #060914 42%, #070c18 100%);
+  color: var(--v2-text);
+}
+
+html[data-theme='v2'] body::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.08), transparent 45%),
+    radial-gradient(circle at 70% 15%, rgba(255, 255, 255, 0.05), transparent 55%),
+    repeating-linear-gradient(
+      120deg,
+      transparent 0,
+      transparent 56px,
+      rgba(210, 176, 111, 0.018) 56px,
+      rgba(210, 176, 111, 0.018) 57px
+    );
+  opacity: 0.55;
+  filter: blur(0.2px);
+  transform: translate3d(0, 0, 0);
+  animation: v2-slow-drift 18s var(--v2-ease) infinite alternate;
+}
+
+html[data-theme='v2'] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.020), rgba(255, 255, 255, 0.020)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  opacity: 0.16;
+}
+
+@keyframes v2-slow-drift {
+  0% { transform: translate3d(-0.6%, -0.8%, 0) scale(1.02); }
+  100% { transform: translate3d(0.8%, 0.6%, 0) scale(1.05); }
+}
+
+@keyframes v2-float {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(0, -10px, 0); }
+}
+
+@keyframes v2-glow {
+  0% { filter: drop-shadow(0 0 0 rgba(214, 183, 122, 0)); }
+  100% { filter: drop-shadow(0 10px 30px rgba(214, 183, 122, 0.18)); }
+}
+
+@keyframes v2-page-in {
+  0% { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.995); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes v2-page-out {
+  0% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  100% { opacity: 0; transform: translate3d(0, 6px, 0) scale(0.996); }
+}
+
+html[data-theme='v2'] .v2-glass {
+  background: var(--v2-glass);
+  border: 1px solid var(--v2-border);
+  box-shadow: var(--v2-shadow-soft);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  border-radius: var(--v2-radius-xl);
+}
+
+html[data-theme='v2'] .v2-glass-strong {
+  background: var(--v2-glass-strong);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: var(--v2-shadow);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  border-radius: var(--v2-radius-xl);
+}
+
+/* 提升表单与菜单中的文本可读性 */
+html[data-theme='v2'] .el-input__inner,
+html[data-theme='v2'] .el-textarea__inner,
+html[data-theme='v2'] .el-select__placeholder,
+html[data-theme='v2'] .el-input__placeholder,
+html[data-theme='v2'] .el-menu-item,
+html[data-theme='v2'] .el-dropdown-link,
+html[data-theme='v2'] .el-dropdown-menu__item {
+  color: var(--v2-text-dim) !important;
+}
+
+html[data-theme='v2'] .el-input__inner::placeholder,
+html[data-theme='v2'] .el-textarea__inner::placeholder {
+  color: var(--v2-muted) !important;
+}
+
+html[data-theme='v2'] .el-menu-item.is-active,
+html[data-theme='v2'] .el-dropdown-menu__item:not(.is-disabled):hover {
+  color: var(--v2-text) !important;
+}
+
+html[data-theme='v2-light'] {
+  --v2-bg-0: #eef3fb;
+  --v2-bg-1: rgba(255, 255, 255, 0.88);
+  --v2-glass: rgba(255, 255, 255, 0.72);
+  --v2-glass-strong: rgba(255, 255, 255, 0.84);
+  --v2-border: rgba(24, 52, 88, 0.16);
+  --v2-text: rgba(27, 43, 66, 0.96);
+  --v2-text-dim: rgba(42, 58, 84, 0.82);
+  --v2-muted: rgba(68, 84, 108, 0.72);
+  --v2-gold: #b8904e;
+  --v2-vermillion: #a84d43;
+  --v2-cyan: #3f98c4;
+  --v2-shadow: 0 20px 48px rgba(19, 39, 74, 0.16);
+  --v2-shadow-soft: 0 10px 26px rgba(22, 38, 66, 0.11);
+  --v2-radius-xl: 26px;
+  --v2-radius-lg: 18px;
+  --v2-radius-md: 14px;
+  --v2-ease: cubic-bezier(.2,.9,.2,1);
+
+  --el-color-primary: var(--v2-gold);
+  --el-color-primary-light-3: #cfac77;
+  --el-color-primary-light-5: #dcc298;
+  --el-color-primary-light-7: #ead9bc;
+  --el-color-primary-light-8: #f3e9d7;
+  --el-color-primary-light-9: #faf5eb;
+  --el-color-primary-dark-2: #9d7840;
+}
+
+html[data-theme='v2-light'] body {
+  background:
+    radial-gradient(1200px 820px at 18% 12%, rgba(184, 144, 78, 0.16), transparent 58%),
+    radial-gradient(920px 740px at 82% 10%, rgba(63, 152, 196, 0.14), transparent 58%),
+    radial-gradient(980px 980px at 60% 84%, rgba(168, 77, 67, 0.12), transparent 62%),
+    linear-gradient(165deg, #edf2fb 0%, #f5f8fd 42%, #eef3fb 100%);
+  color: var(--v2-text);
+}
+
+html[data-theme='v2-light'] body::before {
+  content: '';
+  position: fixed;
+  inset: -20%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.5), transparent 45%),
+    radial-gradient(circle at 70% 15%, rgba(255, 255, 255, 0.3), transparent 55%),
+    repeating-linear-gradient(
+      120deg,
+      transparent 0,
+      transparent 56px,
+      rgba(122, 157, 197, 0.04) 56px,
+      rgba(122, 157, 197, 0.04) 57px
+    );
+  opacity: 0.65;
+  filter: blur(0.2px);
+  transform: translate3d(0, 0, 0);
+  animation: v2-slow-drift 18s var(--v2-ease) infinite alternate;
+}
+
+html[data-theme='v2-light'] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.04)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+  opacity: 0.07;
+}
+
+html[data-theme='v2-light'] .v2-glass {
+  background: var(--v2-glass);
+  border: 1px solid var(--v2-border);
+  box-shadow: var(--v2-shadow-soft);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  backdrop-filter: blur(16px) saturate(120%);
+  border-radius: var(--v2-radius-xl);
+}
+
+html[data-theme='v2-light'] .v2-glass-strong {
+  background: var(--v2-glass-strong);
+  border: 1px solid rgba(24, 52, 88, 0.14);
+  box-shadow: var(--v2-shadow);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  backdrop-filter: blur(18px) saturate(130%);
+  border-radius: var(--v2-radius-xl);
+}
+
+html[data-theme='v2-light'] .el-input__inner,
+html[data-theme='v2-light'] .el-textarea__inner,
+html[data-theme='v2-light'] .el-select__placeholder,
+html[data-theme='v2-light'] .el-input__placeholder,
+html[data-theme='v2-light'] .el-menu-item,
+html[data-theme='v2-light'] .el-dropdown-link,
+html[data-theme='v2-light'] .el-dropdown-menu__item {
+  color: var(--v2-text-dim) !important;
+}
+
+html[data-theme='v2-light'] .el-input__inner::placeholder,
+html[data-theme='v2-light'] .el-textarea__inner::placeholder {
+  color: var(--v2-muted) !important;
+}
+

@@ -1,0 +1,10 @@
+/* Tailwind v4 独立入口（vue-bits 组件依赖）：
+   用独立 .css 文件而非混入 scss——@tailwindcss/vite 的 transform 只处理纯 css 文件。
+   关闭 preflight 防止 reset 污染 Element Plus / 既有样式。 */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@source "../../components/StarBorder.vue";
+@source "../../components/Magnet.vue";
+@source "../../components/SpotlightCard.vue";

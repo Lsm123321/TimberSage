@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="220" viewBox="0 0 360 220">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f2740" />
+      <stop offset="100%" stop-color="#152f4f" />
+    </linearGradient>
+  </defs>
+  <rect width="360" height="220" fill="url(#bg)" />
+  <circle cx="95" cy="76" r="22" fill="#204c73" />
+  <path d="M50 175L135 102L202 158L246 128L310 175V186H50V175Z" fill="#2a5e8f" />
+  <rect x="46" y="34" width="268" height="152" rx="12" ry="12" fill="none" stroke="#6dc7ff" stroke-opacity="0.45" />
+  <text x="180" y="112" text-anchor="middle" fill="#d7f0ff" font-size="18" font-family="Arial, sans-serif">缩略图加载失败</text>
+</svg>
