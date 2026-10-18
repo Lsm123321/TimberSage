@@ -1,0 +1,13 @@
+# Caddy 反向代理配置模板：复制为 Caddyfile.timbersage 并把域名换成你自己的
+timbersage.example.com {
+	encode gzip
+
+	# SSE 流式对话：必须关缓冲，否则前端逐字输出会卡成一坨
+	reverse_proxy /api/chat/stream/* timbersage-frontend-1:80 {
+		flush_interval -1
+	}
+
+	reverse_proxy /api/* timbersage-frontend-1:80
+	reverse_proxy /minio/* timbersage-frontend-1:80
+	reverse_proxy timbersage-frontend-1:80
+}

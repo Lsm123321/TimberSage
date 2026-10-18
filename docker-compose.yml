@@ -1,0 +1,100 @@
+services:
+  mysql:
+    image: ${MYSQL_IMAGE:-mysql:8.0}
+    restart: always
+    environment:
+      # 密码通过同目录 .env 注入（见 .env.example），仓库中不保存真实密码
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: mortise_and_tenon_joint_library
+    ports:
+      - "13307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  redis:
+    image: ${REDIS_IMAGE:-redis:7.0}
+    restart: always
+    ports:
+      - "6394:6379"
+    volumes:
+      - redis_data:/data
+
+  minio:
+    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2025-09-07T16-13-09Z}
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?请在 .env 中设置 MINIO_ROOT_PASSWORD}
+    ports:
+      - "19100:9000"
+      - "19101:9001"
+    volumes:
+      - minio_data:/data
+    command: server --console-address ":9001" /data
+
+  backend:
+    image: ${BACKEND_IMAGE:-timbersage-backend:latest}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        MAVEN_IMAGE: ${BACKEND_MAVEN_IMAGE:-maven:3.9-eclipse-temurin-17-alpine}
+        RUNTIME_IMAGE: ${BACKEND_RUNTIME_IMAGE:-eclipse-temurin:17-jre-alpine}
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+    ports:
+      - "8180:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/mortise_and_tenon_joint_library?useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_MINIO_ENDPOINT=http://minio:9000
+      - SPRING_MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - SPRING_MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:?请在 .env 中设置 MINIO_ROOT_PASSWORD}
+      # 通过前端 Nginx 反代 MinIO，保证资源同源（避免 GLTFLoader 跨域加载失败）
+      # 生产环境请在 .env 中设置 FRONTEND_PUBLIC_BASE_URL，例如 https://your-domain.com
+      - SPRING_MINIO_PUBLIC_ENDPOINT=${FRONTEND_PUBLIC_BASE_URL:-http://localhost:18088}/minio
+      # 生产环境请在 .env 或服务器环境变量中注入真实密钥，避免硬编码
+      - SPRING_DEEPSEEK_API_KEY=${SPRING_DEEPSEEK_API_KEY:-}
+      # 智谱 AI Key（TTS 语音合成 + DeepSeek 拥堵时的 chat 备胎）
+      - ZHIPU_API_KEY=${ZHIPU_API_KEY:-}
+      # 与浏览器访问前端的 Origin 一致；公网部署请加 http://你的IP或域名:*
+      - APP_CORS_ALLOWED_ORIGIN_PATTERNS=${CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-timbersage-frontend:latest}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NODE_IMAGE: ${FRONTEND_NODE_IMAGE:-node:20-alpine}
+        NGINX_IMAGE: ${FRONTEND_NGINX_IMAGE:-nginx:alpine}
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "18088:80"
+
+volumes:
+  mysql_data:
+    name: ${MYSQL_VOLUME_NAME:-mysql_data}
+    external: true
+  redis_data:
+    name: ${REDIS_VOLUME_NAME:-redis_data}
+    external: true
+  minio_data:
+    name: ${MINIO_VOLUME_NAME:-minio_data}
+    external: true
