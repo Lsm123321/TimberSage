@@ -1,10 +1,14 @@
 import request from '../utils/request'
 
-export const getMapPoints = (keyword = '') => {
+/**
+ * 地图点位。
+ * scope：model=模型名 / dynasty=朝代 / location=地点 / all=三者任一
+ */
+export const getMapPoints = (keyword = '', scope = 'all') => {
   return request({
     url: '/map/points',
     method: 'get',
-    params: { keyword }
+    params: { keyword, scope }
   })
 }
 

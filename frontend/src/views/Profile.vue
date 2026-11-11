@@ -1,9 +1,33 @@
 <template>
   <div class="profile-container">
     <div class="profile-header">
-      <el-avatar :size="80" :src="userInfo.avatar">
-        {{ userInfo.nickname?.charAt(0) || userInfo.username?.charAt(0) }}
-      </el-avatar>
+      <!-- 整块可点：点头像或下方按钮都能唤起文件选择；也支持直接把图片拖进来 -->
+      <div
+        class="avatar-wrap"
+        :class="{ uploading: avatarUploading, 'is-dragover': avatarDragOver }"
+        @click="triggerAvatarPick"
+        @dragover.prevent="avatarDragOver = true"
+        @dragenter.prevent="avatarDragOver = true"
+        @dragleave.prevent="avatarDragOver = false"
+        @drop.prevent="handleAvatarDrop"
+        :title="t('changeAvatar')"
+      >
+        <el-avatar :size="80" :src="userInfo.avatar">
+          {{ userInfo.nickname?.charAt(0) || userInfo.username?.charAt(0) }}
+        </el-avatar>
+        <div class="avatar-mask">
+          <el-icon v-if="!avatarUploading"><Camera /></el-icon>
+          <el-icon v-else class="is-loading-icon"><Loading /></el-icon>
+          <span>{{ avatarUploading ? t('uploading') : t('changeAvatar') }}</span>
+        </div>
+        <input
+          ref="avatarInputRef"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif,image/bmp"
+          class="avatar-input"
+          @change="handleAvatarChange"
+        />
+      </div>
       <div class="user-info">
         <h2>{{ userInfo.nickname || userInfo.username }}</h2>
         <p>{{ userInfo.email || t('noEmail') }}</p>
@@ -24,9 +48,29 @@
           </el-button>
         </div>
       </div>
+
+      <!-- 概览统计：让用户一眼看到自己有多少内容，不必逐个标签去翻 -->
+      <div class="profile-stats">
+        <div class="stat-item" @click="switchTab('favorites')">
+          <span class="stat-value">{{ favoritesTotal }}</span>
+          <span class="stat-label">{{ t('favorites') }}</span>
+        </div>
+        <div class="stat-item" @click="switchTab('likes')">
+          <span class="stat-value">{{ likesTotal }}</span>
+          <span class="stat-label">{{ t('myLikes') }}</span>
+        </div>
+        <div class="stat-item" @click="switchTab('comments')">
+          <span class="stat-value">{{ commentsTotal }}</span>
+          <span class="stat-label">{{ t('myComments') }}</span>
+        </div>
+        <div class="stat-item" @click="switchTab('downloads')">
+          <span class="stat-value">{{ downloadsTotal }}</span>
+          <span class="stat-label">{{ t('myDownloads') }}</span>
+        </div>
+      </div>
     </div>
 
-    <el-tabs v-model="activeTab" class="profile-tabs">
+    <el-tabs v-model="activeTab" class="profile-tabs" tab-position="left">
       <el-tab-pane :label="t('profileBasicInfo')" name="info">
         <el-card>
           <template #header>
@@ -547,6 +591,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { updateUserInfo } from '@/api/auth'
+import { Camera, Loading } from '@element-plus/icons-vue'
 import {
   getUserFavorites,
   getUserLikes,
@@ -570,6 +615,13 @@ const authStore = useAuthStore()
 const { t, language } = useUiPreferences()
 
 const activeTab = ref('info')
+
+/** 概览统计卡点击后切到对应标签，顺手把地址栏参数也同步，刷新不丢 */
+const switchTab = (name) => {
+  activeTab.value = name
+  router.replace({ path: '/profile', query: { ...route.query, tab: name } })
+}
+
 const saving = ref(false)
 const changing = ref(false)
 const submitting = ref(false)
@@ -598,6 +650,61 @@ const chatNoteCurrentId = ref(null)
 const chatNoteDraft = ref('')
 
 const userInfo = computed(() => authStore.userInfo || {})
+
+// 头像上传状态
+const avatarInputRef = ref(null)
+const avatarUploading = ref(false)
+const avatarDragOver = ref(false)
+
+const triggerAvatarPick = () => {
+  if (avatarUploading.value) return
+  avatarInputRef.value?.click()
+}
+
+/** 拖拽放下时走和「选择文件」同一套校验，避免规则分叉 */
+const handleAvatarDrop = (event) => {
+  avatarDragOver.value = false
+  const file = event.dataTransfer?.files?.[0]
+  if (!file) return
+  uploadAvatarFile(file)
+}
+
+const handleAvatarChange = (event) => {
+  const file = event.target.files?.[0]
+  // 选完立刻清空，否则连续选同一个文件不会再触发 change
+  event.target.value = ''
+  if (!file) return
+  uploadAvatarFile(file)
+}
+
+const uploadAvatarFile = async (file) => {
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error(t('avatarTip'))
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.error(t('avatarTip'))
+    return
+  }
+
+  avatarUploading.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    await request.post('/users/me/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    // 后端只回 URL，全局 userInfo 要重新拉一次，导航栏/评论区头像才会同步
+    await authStore.fetchUserInfo()
+    ElMessage.success(t('saveSuccess'))
+  } catch (error) {
+    console.error('[Profile] 头像上传失败', error)
+    const msg = error?.response?.data?.message || error?.message || t('saveFailed')
+    ElMessage.error(msg)
+  } finally {
+    avatarUploading.value = false
+  }
+}
 
 const form = reactive({
   username: '',
@@ -1265,10 +1372,117 @@ watch(
   .profile-header {
     display: flex;
     align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
     background: white;
     padding: 30px;
     border-radius: 10px;
     margin-bottom: 20px;
+
+    // 概览统计：贴右侧，窄屏自动换到下一行
+    .profile-stats {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+
+      .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        min-width: 72px;
+        padding: 8px 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background 180ms ease, transform 180ms ease;
+
+        &:hover {
+          background: #f1f5f9;
+          transform: translateY(-2px);
+        }
+
+        .stat-value {
+          font-size: 20px;
+          font-weight: 700;
+          color: #1f2937;
+          font-variant-numeric: tabular-nums;
+          line-height: 1.1;
+        }
+
+        .stat-label {
+          font-size: 12px;
+          color: #64748b;
+          white-space: nowrap;
+        }
+      }
+    }
+
+    // 头像外框只负责定位与悬停反馈，实际头像还是 el-avatar 自己画
+    .avatar-wrap {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      cursor: pointer;
+      flex: none;
+      overflow: hidden;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+
+      :deep(.el-avatar) {
+        width: 100%;
+        height: 100%;
+      }
+
+      .avatar-mask {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        border-radius: 50%;
+        background: rgba(15, 23, 42, 0.62);
+        color: #fff;
+        font-size: 12px;
+        line-height: 1.2;
+        opacity: 0;
+        transition: opacity 180ms ease;
+
+        .el-icon {
+          font-size: 20px;
+        }
+      }
+
+      &:hover .avatar-mask,
+      &.uploading .avatar-mask {
+        opacity: 1;
+      }
+
+      // 拖拽悬停时高亮，明确告诉用户这里可以放
+      &.is-dragover {
+        box-shadow: 0 0 0 3px rgba(79, 121, 199, 0.85), 0 0 20px rgba(79, 121, 199, 0.5);
+
+        .avatar-mask {
+          opacity: 1;
+          background: rgba(79, 121, 199, 0.72);
+        }
+      }
+
+      &.uploading {
+        cursor: progress;
+      }
+
+      .is-loading-icon {
+        animation: avatar-spin 900ms linear infinite;
+      }
+
+      // 原生 file input 藏起来，只留一个视觉可点的头像
+      .avatar-input {
+        display: none;
+      }
+    }
 
     .user-info {
       margin-left: 20px;
@@ -1336,6 +1550,36 @@ watch(
     background: white;
     padding: 20px;
     border-radius: 10px;
+
+    // 标签改为左侧竖排：原来 8-9 个标签横向挤在一行要左右滚动，
+    // 竖排后每项一行，一眼能看全，也方便按用途分组阅读
+    :deep(.el-tabs__header.is-left) {
+      margin-right: 20px;
+      min-width: 140px;
+    }
+
+    :deep(.el-tabs__item.is-left) {
+      justify-content: flex-start;
+      height: 42px;
+      font-size: 13px;
+      padding: 0 16px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+
+      &:hover {
+        background: #f8fafc;
+      }
+
+      &.is-active {
+        color: #4f79c7;
+        background: #eff6ff;
+        font-weight: 600;
+      }
+    }
+
+    :deep(.el-tabs__active-bar.is-left) {
+      border-radius: 2px;
+    }
 
     .profile-form {
       max-width: 500px;
@@ -1602,5 +1846,10 @@ watch(
       }
     }
   }
+}
+
+@keyframes avatar-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>

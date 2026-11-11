@@ -31,6 +31,9 @@ public class MinioServiceImpl implements MinioService {
     @Value("${minio.bucket.thumbnails:thumbnails}")
     private String thumbnailsBucket;
 
+    @Value("${minio.bucket.avatars:avatars}")
+    private String avatarsBucket;
+
     @Value("${minio.url:http://localhost:9000}")
     private String minioUrl;
 
@@ -64,7 +67,15 @@ public class MinioServiceImpl implements MinioService {
                 log.debug("存储桶 {} 已存在", thumbnailsBucket);
             }
             ensureBucketPublicRead(thumbnailsBucket);
-            
+
+            if (!bucketExists(avatarsBucket)) {
+                createBucket(avatarsBucket);
+                log.info("存储桶 {} 创建成功", avatarsBucket);
+            } else {
+                log.debug("存储桶 {} 已存在", avatarsBucket);
+            }
+            ensureBucketPublicRead(avatarsBucket);
+
             log.info("MinIO存储桶初始化完成");
         } catch (Exception e) {
             log.warn("MinIO服务不可用，跳过存储桶初始化。如果需要文件上传功能，请启动MinIO服务。错误信息: {}", e.getMessage());
@@ -102,6 +113,11 @@ public class MinioServiceImpl implements MinioService {
     @Override
     public String uploadThumbnail(MultipartFile file, String objectName) {
         return uploadFile(file, thumbnailsBucket, objectName);
+    }
+
+    @Override
+    public String uploadAvatar(MultipartFile file, String objectName) {
+        return uploadFile(file, avatarsBucket, objectName);
     }
 
     @Override
@@ -178,6 +194,11 @@ public class MinioServiceImpl implements MinioService {
     @Override
     public String getThumbnailUrl(String objectName) {
         return getFileUrl(thumbnailsBucket, objectName);
+    }
+
+    @Override
+    public String getAvatarUrl(String objectName) {
+        return getFileUrl(avatarsBucket, objectName);
     }
 
     @Override

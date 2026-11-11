@@ -6,6 +6,7 @@ import com.arch3d.repository.ContributionApplyRepository;
 import com.arch3d.repository.BuildingModelRepository;
 import com.arch3d.repository.RoleUpgradeApplyRepository;
 import com.arch3d.repository.UserRepository;
+import com.arch3d.service.AvatarService;
 import com.arch3d.service.MinioService;
 import com.arch3d.service.StatisticsService;
 import com.arch3d.service.UserService;
@@ -13,20 +14,24 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
@@ -41,6 +46,7 @@ public class AdminController {
     private final PasswordEncoder passwordEncoder;
     private final BuildingModelRepository buildingModelRepository;
     private final MinioService minioService;
+    private final AvatarService avatarService;
 
     private static final String BUCKET_MODELS = "models";
     private static final String BUCKET_THUMBNAILS = "thumbnails";
@@ -183,6 +189,37 @@ public class AdminController {
         
         User updatedUser = userService.saveUser(user);
         return ResponseEntity.ok(ApiResponse.success("更新成功", updatedUser));
+    }
+
+    /**
+     * 管理员替指定用户上传头像。
+     * 走独立接口而不是塞进 PUT /users/{id}，是因为 multipart 和 JSON 不能同时传。
+     */
+    @PostMapping(value = "/users/{id}/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('admin')")
+    @Operation(summary = "上传指定用户头像", description = "管理员为用户上传头像图片，返回可访问的 URL")
+    public ResponseEntity<ApiResponse<String>> uploadUserAvatar(
+            @PathVariable Integer id,
+            @RequestParam("file") MultipartFile file) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        String oldAvatar = user.getAvatar();
+
+        String avatarUrl;
+        try {
+            avatarUrl = avatarService.uploadAvatar(file);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok(ApiResponse.error(400, e.getMessage()));
+        } catch (Exception e) {
+            log.error("管理员上传用户头像失败, userId={}", id, e);
+            return ResponseEntity.ok(ApiResponse.error(500, "头像上传失败，请稍后再试"));
+        }
+
+        user.setAvatar(avatarUrl);
+        userService.saveUser(user);
+        avatarService.deleteAvatar(oldAvatar);
+
+        return ResponseEntity.ok(ApiResponse.success("头像已更新", avatarUrl));
     }
 
     private void ensureNotDemotingLastAdmin(User user, String targetRole) {
@@ -339,11 +376,13 @@ public class AdminController {
 
     @GetMapping("/statistics/download-logs")
     @PreAuthorize("hasRole('admin')")
-    @Operation(summary = "获取下载明细日志", description = "获取下载明细日志记录")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDownloadLogs(
+    @Operation(summary = "获取下载明细日志", description = "分页获取下载明细日志记录")
+    public ResponseEntity<ApiResponse<PageDTO<Map<String, Object>>>> getDownloadLogs(
             @RequestParam(required = false) LocalDate startDate,
-            @RequestParam(required = false) LocalDate endDate) {
-        List<Map<String, Object>> logs = statisticsService.getDownloadLogs(startDate, endDate);
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        PageDTO<Map<String, Object>> logs = statisticsService.getDownloadLogs(startDate, endDate, page, pageSize);
         return ResponseEntity.ok(ApiResponse.success(logs));
     }
 

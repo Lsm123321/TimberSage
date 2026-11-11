@@ -1,25 +1,18 @@
 <template>
   <div class="map-explorer">
-    <div class="top-bar v2-glass">
-      <el-input
-        v-model="keyword"
-        class="search-input"
-        clearable
-        placeholder="搜索古建筑名称，地图点位将高亮提示"
-        @input="handleKeywordChange"
-      >
-        <template #prefix>
-          <el-icon><Search /></el-icon>
-        </template>
-      </el-input>
-      <div class="search-status">
-        <span v-if="keyword">匹配点位：{{ filteredPoints.length }} 个</span>
-        <span v-else>总点位：{{ points.length }} 个</span>
-      </div>
-      <el-button plain @click="goBack">返回上一页</el-button>
+    <!--
+      搜索已并入顶栏（支持全部/建筑名/朝代/地点）。
+      这里只保留当前筛选状态回显 + 点位统计，避免整条搜索栏重复占地方。
+    -->
+    <div class="filter-hint v2-glass" v-if="keyword.trim() || activeRegionCode">
+      <span class="hint-label">当前筛选</span>
+      <el-tag v-if="keyword.trim()" closable @close="clearKeywordFilter">{{ scopeLabel }}：{{ keyword }}</el-tag>
+      <el-tag v-if="activeRegionCode" type="warning" closable @close="clearSelection">{{ activeRegionName }}</el-tag>
+      <span class="hint-count">匹配点位 {{ filteredPoints.length }} / {{ points.length }}</span>
+      <el-button text size="small" @click="clearAllFilters">重置</el-button>
     </div>
 
-    <div class="stage">
+    <div class="stage" :class="{ 'no-panel': !activeRegionCode }">
       <div class="map-board v2-glass-strong">
         <div class="map-chart" ref="mapChartRef"></div>
 
@@ -60,22 +53,70 @@
           </div>
         </div>
       </transition>
+
+      <!--
+        未选中区域时，右侧用「朝代分布 + 点位速览」填充。
+        必须放在 stage 网格内部才能跟地图同屏；放外面会被挤到视口下方，用户看不到。
+      -->
+      <div class="insight-deck v2-glass" v-if="!activeRegionCode">
+        <div class="deck-block dynasty-block">
+          <div class="deck-title">
+            <span>朝代分布</span>
+            <span class="deck-hint">点击筛选</span>
+          </div>
+          <div class="dynasty-chips">
+            <button
+              v-for="item in dynastyStats"
+              :key="item.name"
+              type="button"
+              class="dynasty-chip"
+              :class="{ active: dynastyFilter === item.name }"
+              @click="toggleDynastyFilter(item.name)"
+            >
+              <span class="chip-name">{{ item.name }}</span>
+              <span class="chip-count">{{ item.count }}</span>
+            </button>
+            <span v-if="!dynastyStats.length" class="deck-empty">暂无数据</span>
+          </div>
+        </div>
+
+        <div class="deck-block points-block">
+          <div class="deck-title">
+            <span>点位速览</span>
+            <span class="deck-hint">共 {{ quickPoints.length }} 处，点击定位</span>
+          </div>
+          <div class="quick-points">
+            <button
+              v-for="point in quickPoints"
+              :key="point.id"
+              type="button"
+              class="quick-point"
+              @click="selectPoint(point)"
+            >
+              <span class="qp-name">{{ point.hint }}</span>
+              <span class="qp-meta">{{ [point.dynasty, point.location].filter(Boolean).join(' · ') || point.regionName }}</span>
+            </button>
+            <span v-if="!quickPoints.length" class="deck-empty">没有匹配的点位</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { Search } from '@element-plus/icons-vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { generateMapInsight, getMapPoints, getRegionModels } from '@/api/map'
+import { usePageSearchStore } from '@/stores/pageSearch'
 import * as echarts from 'echarts'
 import chinaGeoJson from '@/assets/maps/china-geo.json'
 import defaultThumb from '@/assets/maps/default-thumb.svg'
 
-const router = useRouter()
-const keyword = ref('')
+const pageSearchStore = usePageSearchStore()
+// 关键词与范围由顶栏搜索驱动，本页不再自带输入框
+const keyword = computed(() => pageSearchStore.keyword)
+const searchScope = computed(() => pageSearchStore.scope)
 const points = ref([])
 const filteredPoints = ref([])
 const compliance = ref({
@@ -96,6 +137,45 @@ let mapChart = null
 const onResize = () => mapChart?.resize()
 const insightCache = new Map()
 let regionRefreshing = false
+const dynastyFilter = ref('')
+
+/**
+ * 朝代分布：直接按当前点位聚合，不额外请求接口。
+ * 空朝代统一归到「未知」，避免出现空白标签。
+ */
+const dynastyStats = computed(() => {
+  const counter = new Map()
+  for (const point of filteredPoints.value) {
+    const name = (point.dynasty || '').trim() || '未知'
+    counter.set(name, (counter.get(name) || 0) + 1)
+  }
+  return Array.from(counter, ([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10)
+})
+
+/** 速览列表：朝代筛选优先，其次跟随搜索关键词，默认取前 12 个 */
+const quickPoints = computed(() => {
+  let list = filteredPoints.value
+  if (dynastyFilter.value) {
+    list = list.filter(point => ((point.dynasty || '').trim() || '未知') === dynastyFilter.value)
+  }
+  return list.slice(0, 12)
+})
+
+const toggleDynastyFilter = (name) => {
+  dynastyFilter.value = dynastyFilter.value === name ? '' : name
+}
+
+/** 筛选标签上显示当前范围的中文名 */
+const scopeLabel = computed(() => {
+  switch (searchScope.value) {
+    case 'model': return '建筑名'
+    case 'dynasty': return '朝代'
+    case 'location': return '地点'
+    default: return '关键词'
+  }
+})
 
 const getThumbnailSrc = (model) => {
   if (model.thumbLoadFailed) return defaultImage
@@ -122,7 +202,7 @@ const upsertRegionModels = (rows) => {
 
 const loadPoints = async () => {
   try {
-    const resp = await getMapPoints(keyword.value.trim())
+    const resp = await getMapPoints(keyword.value.trim(), searchScope.value)
     const payload = resp.data?.data || {}
     points.value = payload.points || []
     filteredPoints.value = payload.points || []
@@ -133,6 +213,9 @@ const loadPoints = async () => {
       if (matchedPoint) {
         activePoint.value = matchedPoint
         activeRegionName.value = matchedPoint.regionName || activeRegionName.value
+      } else {
+        // 过滤后当前区域已无点位，收起右侧面板免得展示不相关内容
+        clearSelection()
       }
     }
 
@@ -143,8 +226,26 @@ const loadPoints = async () => {
   }
 }
 
-const handleKeywordChange = async () => {
+/** 清除关键词筛选（保留已选区域） */
+const clearKeywordFilter = () => {
+  pageSearchStore.reset()
+  loadPoints()
+}
+
+/** 一次性清掉关键词与区域选择 */
+/**
+ * 一键重置：清掉关键词、收起右侧区域、把地图视角也拉回初始缩放。
+ * 只清数据不重置视图的话，用户还会停在之前放大的位置，达不到"重新开始"的效果。
+ */
+const clearAllFilters = async () => {
+  pageSearchStore.reset()
+  dynastyFilter.value = ''
+  activePoint.value = null
+  activeRegionCode.value = ''
+  activeRegionName.value = ''
+  regionModels.value = []
   await loadPoints()
+  // loadPoints 内部会调 renderMap，此时 activePoint 已清空，zoom 会自动回到 1.08
 }
 
 const hydrateInsights = async () => {
@@ -192,6 +293,8 @@ const selectPoint = async (point) => {
   activeRegionCode.value = point.regionCode
   activeRegionName.value = point.regionName
   renderMap()
+  // 右侧面板撑开会让地图变窄，等 CSS 过渡结束再 resize，否则画布尺寸对不上
+  resizeMapAfterLayout()
   regionLoading.value = true
   regionModels.value = []
   try {
@@ -212,10 +315,12 @@ const clearSelection = () => {
   activeRegionName.value = ''
   regionModels.value = []
   renderMap()
+  resizeMapAfterLayout()
 }
 
-const goBack = () => {
-  router.back()
+/** 栅格列宽有 340ms 过渡，地图必须在这之后重新量一次尺寸 */
+const resizeMapAfterLayout = () => {
+  window.setTimeout(() => mapChart?.resize(), 360)
 }
 
 const startPolling = () => {
@@ -371,6 +476,12 @@ onMounted(async () => {
   window.addEventListener('resize', onResize)
 })
 
+// 顶栏搜索提交后（tick 变化）重新拉点位
+watch(() => pageSearchStore.tick, async () => {
+  await loadPoints()
+  // 关键词变了，之前选中的区域可能已不在结果里，由 loadPoints 内部判断处理
+})
+
 onUnmounted(() => {
   stopPolling()
   window.removeEventListener('focus', onFocus)
@@ -389,27 +500,181 @@ onUnmounted(() => {
   gap: 14px;
   min-height: calc(100vh - 130px);
 
-  .top-bar {
+  // 搜索已并入顶栏，这里只保留筛选状态回显条
+  .filter-hint {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 12px;
 
-    .search-input {
-      max-width: 460px;
+    .hint-label {
+      color: var(--v2-muted);
+      font-size: 13px;
     }
 
-    .search-status {
-      color: var(--v2-text-dim);
+    .hint-count {
+      color: var(--v2-muted);
       font-size: 13px;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    :deep(.el-tag) {
+      color: #1f2937 !important;
+      background: #f1f5f9 !important;
+      border-color: rgba(148, 163, 184, 0.45) !important;
+      font-weight: 600;
     }
   }
 
   .stage {
     display: grid;
-    grid-template-columns: 1.3fr 1fr;
+    grid-template-columns: minmax(0, 1.45fr) minmax(300px, 1fr);
     gap: 14px;
     min-height: 620px;
+    // 右侧面板与速览区切换时让地图平滑变宽/变窄
+    transition: grid-template-columns 340ms cubic-bezier(.2,.8,.2,1);
+
+    // 选中区域时右侧是模型卡片，未选中时是速览区，
+    // 两种情况宽度一致，地图尺寸不跳变
+    &.no-panel {
+      grid-template-columns: minmax(0, 1.45fr) minmax(300px, 1fr);
+    }
+  }
+
+  .insight-deck {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 14px 16px;
+    border-radius: var(--v2-radius-xl);
+    // 跟地图一致用 min-height 对齐基线高度，再用 max-height 防止内容把整块撑爆；
+    // 内部列表自己滚动，保证整页在视口内不用滚
+    min-height: 620px;
+    max-height: 620px;
+    overflow: hidden;
+    animation: deck-in 320ms cubic-bezier(.2,.8,.2,1);
+
+    .deck-block {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    // 速览占满剩余高度，自己内部滚动，不让整页跟着变长
+    .points-block {
+      flex: 1;
+      min-height: 0;
+    }
+
+    .deck-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--v2-text);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+
+      .deck-hint {
+        color: var(--v2-muted);
+        font-size: 12px;
+        font-weight: 400;
+      }
+    }
+
+    .deck-empty {
+      color: var(--v2-muted);
+      font-size: 12px;
+    }
+
+    .dynasty-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .dynasty-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      color: var(--v2-text-dim);
+      font-size: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 180ms ease;
+
+      &:hover {
+        border-color: rgba(140, 234, 255, 0.4);
+        color: var(--v2-text);
+        transform: translateY(-1px);
+      }
+
+      &.active {
+        color: #0b1524;
+        background: linear-gradient(180deg, rgba(214, 183, 122, 0.95), rgba(190, 158, 98, 0.95));
+        border-color: transparent;
+        box-shadow: 0 6px 18px rgba(214, 183, 122, 0.3);
+      }
+
+      .chip-count {
+        font-variant-numeric: tabular-nums;
+        opacity: 0.75;
+      }
+    }
+
+    .quick-points {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .quick-point {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 9px 12px;
+      text-align: left;
+      border-radius: 12px;
+      cursor: pointer;
+      background: rgba(8, 16, 28, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: all 200ms ease;
+
+      &:hover {
+        transform: translateY(-2px);
+        border-color: rgba(140, 234, 255, 0.42);
+        box-shadow: 0 12px 26px rgba(12, 34, 60, 0.4);
+      }
+
+      .qp-name {
+        color: var(--v2-text);
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .qp-meta {
+        color: var(--v2-muted);
+        font-size: 11px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
   }
 
   .map-board {
@@ -473,7 +738,9 @@ onUnmounted(() => {
     border-radius: var(--v2-radius-xl);
     padding: 12px;
     overflow: hidden;
+    // 和地图对齐高度，内容多了在内部滚动，别把整页顶长
     min-height: 620px;
+    max-height: 620px;
     display: flex;
     flex-direction: column;
     transform-style: preserve-3d;
@@ -492,9 +759,13 @@ onUnmounted(() => {
 
     .panel-body {
       overflow: auto;
+      flex: 1;
+      min-height: 0;
       display: flex;
       flex-direction: column;
       gap: 10px;
+      // 让内部卡片能根据自身宽度切换横排/竖排
+      container-type: inline-size;
     }
 
     .model-card {
@@ -506,6 +777,11 @@ onUnmounted(() => {
       border: 1px solid rgba(255, 255, 255, 0.12);
       background: rgba(8, 16, 28, 0.55);
       transition: transform 280ms ease, box-shadow 280ms ease, border-color 280ms ease;
+
+      // 面板宽度不够时改成上下排，否则右侧文字会被挤成一列单字
+      @container (max-width: 340px) {
+        grid-template-columns: 1fr;
+      }
 
       &:hover {
         transform: translateY(-4px) translateZ(0);
@@ -520,6 +796,11 @@ onUnmounted(() => {
         border-radius: 10px;
         border: 1px solid rgba(140, 234, 255, 0.34);
         box-shadow: 0 0 20px rgba(99, 198, 255, 0.24);
+
+        @container (max-width: 340px) {
+          width: 100%;
+          height: 120px;
+        }
       }
 
       h4 {
@@ -575,6 +856,17 @@ onUnmounted(() => {
   }
 }
 
+@keyframes deck-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes map-breath {
   0% {
     filter: saturate(1) brightness(1);
@@ -584,8 +876,11 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 1200px) {
-  .map-explorer .stage {
+// 只有真正窄屏（平板竖屏以下）才堆成单列；
+// 1200px 会把常见的笔记本窗口也打成单列，右侧内容就被挤到地图下面了
+@media (max-width: 900px) {
+  .map-explorer .stage,
+  .map-explorer .stage.no-panel {
     grid-template-columns: 1fr;
   }
 }

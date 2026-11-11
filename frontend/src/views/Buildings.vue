@@ -7,30 +7,37 @@
       </div>
     </div>
 
-    <div class="search-bar">
-      <el-input
-        v-model="searchKeyword"
-        :placeholder="t('searchBuildingName')"
-        style="width: 300px"
-        clearable
-        @clear="handleSearch"
-        @keyup.enter="handleSearch"
+    <!-- 分类筛选：原首页「分类浏览」的功能，集中到列表页顶部 -->
+    <div class="category-filter" v-if="categoryOptions.length">
+      <button
+        type="button"
+        class="category-pill"
+        :class="{ active: !selectedCategoryId }"
+        @click="selectCategoryFilter(null)"
       >
-        <template #prefix>
-          <el-icon><Search /></el-icon>
-        </template>
-      </el-input>
-
-      <el-select v-model="selectedDynasty" :placeholder="t('selectDynasty')" clearable style="width: 150px" @change="handleSearch">
-        <el-option :label="t('allDynasty')" value="" />
-        <el-option :label="t('dynastyTang')" value="唐" />
-        <el-option :label="t('dynastySong')" value="宋" />
-        <el-option :label="t('dynastyYuan')" value="元" />
-        <el-option :label="t('dynastyMing')" value="明" />
-        <el-option :label="t('dynastyQing')" value="清" />
-      </el-select>
+        全部
+      </button>
+      <button
+        v-for="cat in categoryOptions"
+        :key="cat.id"
+        type="button"
+        class="category-pill"
+        :class="{ active: selectedCategoryId === cat.id }"
+        @click="selectCategoryFilter(cat.id)"
+      >
+        {{ cat.categoryName }}
+      </button>
     </div>
 
+    <!-- 筛选条件提示：搜索已并入顶栏，这里只显示当前生效的条件，可一键清除 -->
+    <div class="filter-hint" v-if="activeKeyword || activeDynasty || activeCategoryName">
+      <span class="hint-label">当前筛选</span>
+      <el-tag v-if="activeCategoryName" type="success" closable @close="clearCategoryFilter">{{ activeCategoryName }}</el-tag>
+      <el-tag v-if="activeKeyword" closable @close="clearKeywordFilter">{{ activeKeyword }}</el-tag>
+      <el-tag v-if="activeDynasty" type="warning" closable @close="clearDynastyFilter">{{ activeDynasty }}</el-tag>
+      <span class="hint-count">共 {{ total }} 座</span>
+      <el-button text size="small" @click="clearAllFilters">清除全部</el-button>
+    </div>
     <el-card class="ai-guide-card" shadow="hover">
       <template #header>
         <div class="ai-guide-header">
@@ -305,6 +312,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBuildingStore } from '@/stores/building'
 import { useAuthStore } from '@/stores/auth'
+import { usePageSearchStore } from '@/stores/pageSearch'
 import { Search, View, Star, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import request from '@/utils/request'
@@ -314,6 +322,7 @@ import { useUiPreferences } from '@/composables/useUiPreferences'
 const router = useRouter()
 const buildingStore = useBuildingStore()
 const authStore = useAuthStore()
+const pageSearchStore = usePageSearchStore()
 const { t } = useUiPreferences()
 
 const loading = ref(false)
@@ -323,6 +332,15 @@ const currentPage = ref(1)
 const pageSize = ref(12)
 const searchKeyword = ref('')
 const selectedDynasty = ref('')
+// 分类筛选（从首页「分类浏览」合并过来）
+const selectedCategoryId = ref(null)
+// 顶部搜索传来的关键词（与建筑名筛选同义），用于筛选条件提示
+const activeKeyword = computed(() => searchKeyword.value)
+const activeDynasty = computed(() => selectedDynasty.value)
+const activeCategoryName = computed(() => {
+  if (!selectedCategoryId.value) return ''
+  return categoryOptions.value.find(c => c.id === selectedCategoryId.value)?.categoryName || ''
+})
 const defaultImage = 'https://via.placeholder.com/300x200?text=No+Image'
 const aiQuestion = ref('')
 const aiAnswer = ref('')
@@ -380,7 +398,14 @@ const createForm = ref({
 
 onMounted(() => {
   loadBuildings()
+  // 分类胶囊要用到分类列表，进页面就加载
+  loadCategories()
   restoreAiGuideState()
+})
+
+// 顶栏搜索提交后（tick 变化）就地过滤当前列表
+watch(() => pageSearchStore.tick, () => {
+  applyTopSearch()
 })
 
 const loadBuildings = async () => {
@@ -390,7 +415,8 @@ const loadBuildings = async () => {
       currentPage.value,
       pageSize.value,
       searchKeyword.value,
-      selectedDynasty.value
+      selectedDynasty.value,
+      selectedCategoryId.value
     )
     buildings.value = data.records || []
     total.value = data.total || 0
@@ -401,7 +427,61 @@ const loadBuildings = async () => {
   }
 }
 
+/** 点分类胶囊：同一个再点一次等于取消该分类 */
+const selectCategoryFilter = (categoryId) => {
+  selectedCategoryId.value = selectedCategoryId.value === categoryId ? null : categoryId
+  currentPage.value = 1
+  loadBuildings()
+}
+
+const clearCategoryFilter = () => {
+  selectedCategoryId.value = null
+  currentPage.value = 1
+  loadBuildings()
+}
+
 const handleSearch = () => {
+  currentPage.value = 1
+  loadBuildings()
+}
+
+/**
+ * 顶部搜索驱动的就地过滤。
+ * scope 为 dynasty 时当作朝代筛选，其余按建筑名关键词处理——
+ * 建筑列表后端只认 keyword + dynasty 两个参数。
+ */
+const applyTopSearch = () => {
+  const { keyword, scope } = pageSearchStore
+  if (scope === 'dynasty') {
+    selectedDynasty.value = keyword
+    searchKeyword.value = ''
+  } else {
+    searchKeyword.value = keyword
+    // 非朝代范围不改朝代筛选，避免用户切范围时意外丢掉已选朝代
+  }
+  currentPage.value = 1
+  loadBuildings()
+}
+
+const clearKeywordFilter = () => {
+  searchKeyword.value = ''
+  pageSearchStore.reset()
+  currentPage.value = 1
+  loadBuildings()
+}
+
+const clearDynastyFilter = () => {
+  selectedDynasty.value = ''
+  pageSearchStore.reset()
+  currentPage.value = 1
+  loadBuildings()
+}
+
+const clearAllFilters = () => {
+  searchKeyword.value = ''
+  selectedDynasty.value = ''
+  selectedCategoryId.value = null
+  pageSearchStore.reset()
   currentPage.value = 1
   loadBuildings()
 }
@@ -870,6 +950,39 @@ watch(
 
 <style lang="scss" scoped>
 .buildings-container {
+  // 分类胶囊：原首页「分类浏览」的入口，合并到列表页顶部
+  .category-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+
+    .category-pill {
+      padding: 7px 16px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--v2-text-dim, #94a3b8);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 180ms ease;
+
+      &:hover {
+        color: var(--v2-text, #e2e8f0);
+        border-color: rgba(140, 234, 255, 0.4);
+        transform: translateY(-1px);
+      }
+
+      &.active {
+        color: #0b1524;
+        font-weight: 600;
+        background: linear-gradient(180deg, rgba(214, 183, 122, 0.95), rgba(190, 158, 98, 0.95));
+        border-color: transparent;
+        box-shadow: 0 6px 18px rgba(214, 183, 122, 0.28);
+      }
+    }
+  }
+
   .page-header {
     display: flex;
     justify-content: space-between;
@@ -882,24 +995,34 @@ watch(
     }
   }
 
-  .search-bar {
+  // 筛选条件提示条：搜索已并入顶栏，这里只回显当前生效的条件
+  .filter-hint {
     display: flex;
-    gap: 15px;
-    margin-bottom: 20px;
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 
-    :deep(.el-input__inner),
-    :deep(.el-select__selected-item),
-    :deep(.el-select__placeholder),
-    :deep(.el-input__wrapper input) {
-      color: #374151 !important;
+    .hint-label {
+      color: var(--v2-muted, #94a3b8);
+      font-size: 13px;
     }
 
-    :deep(.el-input__inner::placeholder),
-    :deep(.el-textarea__inner::placeholder) {
-      color: #9ca3af !important;
+    .hint-count {
+      color: var(--v2-muted, #94a3b8);
+      font-size: 13px;
+      margin-left: auto;
+    }
+
+    :deep(.el-tag) {
+      color: #1f2937 !important;
+      background: #f1f5f9 !important;
+      border-color: rgba(148, 163, 184, 0.45) !important;
+      font-weight: 600;
     }
   }
 

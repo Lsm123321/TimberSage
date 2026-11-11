@@ -1,10 +1,14 @@
 package com.arch3d.service.impl;
 
+import com.arch3d.dto.PageDTO;
 import com.arch3d.entity.*;
 import com.arch3d.repository.*;
 import com.arch3d.service.StatisticsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -123,24 +127,59 @@ public class StatisticsServiceImpl implements StatisticsService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 下载明细分页查询。
+     *
+     * 两个关键点：
+     * 1) 走仓储的 JOIN FETCH 查询，避免逐行懒加载 user/model/category 造成 N+1；
+     * 2) 在数据库层面分页，只取当前页几十条，不再把全表塞进内存和网络。
+     * 页码从 1 开始（跟前端一致），转成 JPA 的 0 基索引时要减 1。
+     */
     @Override
-    public List<Map<String, Object>> getDownloadLogs(LocalDate startDate, LocalDate endDate) {
-        return getLogsByDateRange(startDate, endDate).stream().map(log -> {
-            Map<String, Object> modelData = new HashMap<>();
-            modelData.put("id", log.getId());
-            modelData.put("userId", log.getUserId());
-            modelData.put("username", log.getUser() != null ? log.getUser().getUsername() : "匿名");
-            modelData.put("modelId", log.getModelId());
-            boolean modelExists = log.getModel() != null;
-            modelData.put("modelExists", modelExists);
-            modelData.put("modelName", modelExists ? log.getModel().getModelName() : null);
-            modelData.put("dynasty", modelExists ? log.getModel().getDynasty() : null);
-            modelData.put("categoryName", (modelExists && log.getModel().getCategory() != null)
-                    ? log.getModel().getCategory().getCategoryName() : null);
-            modelData.put("ipAddress", log.getIpAddress());
-            modelData.put("downloadTime", log.getDownloadTime());
-            return modelData;
-        }).collect(Collectors.toList());
+    public PageDTO<Map<String, Object>> getDownloadLogs(LocalDate startDate, LocalDate endDate, int page, int pageSize) {
+        // 兜底：页码/页大小非法时给安全默认值，避免 PageRequest 抛异常
+        int safePage = Math.max(page, 1);
+        int safePageSize = pageSize <= 0 ? 20 : Math.min(pageSize, 200);
+        Pageable pageable = PageRequest.of(safePage - 1, safePageSize);
+
+        Page<DownloadLog> logPage;
+        if (startDate != null && endDate != null) {
+            LocalDateTime startTime = startDate.atStartOfDay();
+            // 结束日期要包含当天整天，所以用「次日零点」做开区间上界
+            LocalDateTime endTime = endDate.plusDays(1).atStartOfDay();
+            logPage = downloadLogRepository.findByDateRangeWithDetails(startTime, endTime, pageable);
+        } else {
+            logPage = downloadLogRepository.findAllWithDetails(pageable);
+        }
+
+        List<Map<String, Object>> records = logPage.getContent().stream()
+                .map(this::toDownloadLogRow)
+                .collect(Collectors.toList());
+
+        return PageDTO.<Map<String, Object>>builder()
+                .total(logPage.getTotalElements())
+                .page(safePage)
+                .pageSize(safePageSize)
+                .records(records)
+                .build();
+    }
+
+    /** 单条下载日志转前端需要的字段结构 */
+    private Map<String, Object> toDownloadLogRow(DownloadLog log) {
+        Map<String, Object> row = new HashMap<>();
+        row.put("id", log.getId());
+        row.put("userId", log.getUserId());
+        row.put("username", log.getUser() != null ? log.getUser().getUsername() : "匿名");
+        row.put("modelId", log.getModelId());
+        boolean modelExists = log.getModel() != null;
+        row.put("modelExists", modelExists);
+        row.put("modelName", modelExists ? log.getModel().getModelName() : null);
+        row.put("dynasty", modelExists ? log.getModel().getDynasty() : null);
+        row.put("categoryName", (modelExists && log.getModel().getCategory() != null)
+                ? log.getModel().getCategory().getCategoryName() : null);
+        row.put("ipAddress", log.getIpAddress());
+        row.put("downloadTime", log.getDownloadTime());
+        return row;
     }
 
     private List<DownloadLog> getLogsByDateRange(LocalDate startDate, LocalDate endDate) {

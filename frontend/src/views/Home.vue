@@ -30,22 +30,6 @@
       </div>
     </div>
 
-    <div class="category-section">
-      <h2>{{ t('categoryBrowse') }}</h2>
-      <div class="category-nav">
-        <div
-          v-for="category in categories"
-          :key="category.id"
-          class="category-item"
-          :class="{ active: selectedCategory === category.categoryCode }"
-          @click="selectCategory(category)"
-        >
-          <el-icon class="category-icon"><component :is="category.icon" /></el-icon>
-          <span class="category-name">{{ category.categoryName }}</span>
-        </div>
-      </div>
-    </div>
-
     <div class="hot-keywords-section" v-if="hotKeywords.length > 0">
       <div class="section-header">
         <span class="section-title">{{ t('hotSearch') }}</span>
@@ -62,29 +46,21 @@
       </div>
     </div>
 
-    <div class="models-section" v-if="selectedCategory || currentModels.length > 0">
+    <!-- 分类浏览已合并到建筑列表页顶部，这里只保留推荐模型 -->
+    <div class="models-section" v-if="currentModels.length > 0">
       <div class="section-header">
-        <h2>{{ selectedCategoryName || t('recommendedModels') }}</h2>
+        <h2>{{ t('recommendedModels') }}</h2>
         <div class="section-actions">
-          <el-button v-if="selectedCategory" text @click="clearCategorySelection">
-            {{ t('backToDefault') }}
-          </el-button>
           <el-button
-            v-if="currentModels.length > 0"
             text
-            @click="$router.push({ path: '/buildings', query: { category: selectedCategory } })"
+            @click="$router.push('/buildings')"
           >
             {{ t('viewMore') }}
           </el-button>
         </div>
       </div>
 
-      <ModelGrid v-if="currentModels.length > 0" :models="currentModels" :loading="loading" :span="6" />
-      <el-empty
-        v-else
-        class="category-empty-state"
-        :description="t('noModelsInCategory')"
-      />
+      <ModelGrid :models="currentModels" :loading="loading" :span="6" />
     </div>
 
     <div class="popular-section">
@@ -146,7 +122,7 @@ import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useModelStore } from '@/stores/model'
 import ModelGrid from '@/components/ModelGrid.vue'
-import { Box, ChatLineRound, Collection, OfficeBuilding, House, Connection, Location, DataAnalysis, Checked } from '@element-plus/icons-vue'
+import { Box, ChatLineRound, Collection, Location, DataAnalysis, Checked } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import request from '@/utils/request'
 import { useUiPreferences } from '@/composables/useUiPreferences'
@@ -158,12 +134,9 @@ const { t } = useUiPreferences()
 const loading = ref(false)
 const popularModels = ref([])
 const currentModels = ref([])
-const selectedCategory = ref('')
-const selectedCategoryName = ref('')
 const hotKeywords = ref([])
 const featureCards = ref([])
 
-const categories = ref([])
 const heroParticles = [
   { id: 1, style: '--size: 4px; --left: 8%; --top: 72%; --delay: 0.1s; --duration: 8.4s;' },
   { id: 2, style: '--size: 5px; --left: 22%; --top: 68%; --delay: 1.4s; --duration: 10.2s;' },
@@ -174,38 +147,12 @@ const heroParticles = [
   { id: 7, style: '--size: 3px; --left: 90%; --top: 69%; --delay: 3.4s; --duration: 8.8s;' }
 ]
 const featureCardStyles = reactive({})
-const categoryIconMap = {
-  bridge: Connection,
-  palace: OfficeBuilding,
-  temple: House,
-  garden: Collection,
-  dwelling: House,
-  tower: OfficeBuilding
-}
 
 onMounted(async () => {
-  await loadCategories()
   await loadPopularModels()
   await loadHotKeywords()
   buildFeatureCards()
 })
-
-const loadCategories = async () => {
-  try {
-    const response = await request.get('/categories')
-    const rows = response.data?.data || []
-    categories.value = rows
-      .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
-      .slice(0, 3)
-      .map(item => ({
-        ...item,
-        icon: categoryIconMap[item.categoryCode] || Connection
-      }))
-  } catch (error) {
-    console.error('[Home] 加载分类失败', error)
-    categories.value = []
-  }
-}
 
 const loadPopularModels = async () => {
   loading.value = true
@@ -233,31 +180,6 @@ const loadHotKeywords = async () => {
     console.error('[Home] 加载热搜关键词失败', error)
     hotKeywords.value = []
   }
-}
-
-const selectCategory = async (category) => {
-  selectedCategory.value = category.categoryCode
-  selectedCategoryName.value = category.categoryName
-  loading.value = true
-  try {
-    // 故意不传 status，传了后端会走 status 分支把 categoryId 忽略掉
-    const response = await modelStore.fetchModels(1, 4, '', category.id, '', '')
-    const records = response.records || []
-    currentModels.value = records.slice(0, 4)
-    if (records.length === 0) {
-      ElMessage.info(`${t('noModelsInCategoryPrefix')}“${category.categoryName}”${t('noModelsInCategorySuffix')}`)
-    }
-  } catch (error) {
-    console.error('[Home] 加载分类模型失败', error)
-  } finally {
-    loading.value = false
-  }
-}
-
-const clearCategorySelection = () => {
-  selectedCategory.value = ''
-  selectedCategoryName.value = ''
-  currentModels.value = []
 }
 
 const searchKeyword = (keyword) => {
@@ -564,66 +486,6 @@ const resetFeatureCard = (key) => {
     }
   }
 
-  .category-section {
-    background: white;
-    padding: 30px;
-    border-radius: 10px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-
-    h2 {
-      font-size: 20px;
-      color: #333;
-      margin-bottom: 20px;
-    }
-
-    .category-nav {
-      display: flex;
-      gap: 30px;
-
-      .category-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 20px 30px;
-        border-radius: 10px;
-        cursor: pointer;
-        transition: all 0.3s;
-
-        &:hover {
-          background: #f5f7fa;
-
-          &:not(.active) .category-name {
-            color: #0f172a;
-          }
-        }
-
-        &.active {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-
-          .category-icon {
-            color: white;
-          }
-        }
-
-        .category-icon {
-          font-size: 40px;
-          color: #667eea;
-          margin-bottom: 10px;
-        }
-
-        .category-name {
-          font-size: 14px;
-          color: #334155;
-          font-weight: 650;
-          letter-spacing: 0.2px;
-          opacity: 0.94;
-        }
-      }
-    }
-  }
-
   .hot-keywords-section {
     background: rgba(12, 18, 34, 0.62);
     padding: 20px 30px;
@@ -712,10 +574,6 @@ const resetFeatureCard = (key) => {
         color: #333;
       }
     }
-  }
-
-  .category-empty-state {
-    padding: 24px 0 8px;
   }
 
   .feature-section {

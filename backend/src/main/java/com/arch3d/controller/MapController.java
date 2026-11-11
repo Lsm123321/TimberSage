@@ -33,9 +33,11 @@ public class MapController {
     private String reviewYear;
 
     @GetMapping("/points")
-    @Operation(summary = "获取地图点位", description = "按关键词过滤已发布模型并返回地图点位")
-    public ApiResponse<Map<String, Object>> getMapPoints(@RequestParam(value = "keyword", required = false) String keyword) {
-        Map<String, Object> payload = new LinkedHashMap<>(mapService.getMapOverview(keyword));
+    @Operation(summary = "获取地图点位", description = "按关键词与范围过滤已发布模型并返回地图点位")
+    public ApiResponse<Map<String, Object>> getMapPoints(
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "scope", required = false, defaultValue = "all") String scope) {
+        Map<String, Object> payload = new LinkedHashMap<>(mapService.getMapOverview(keyword, scope));
         payload.put("compliance", Map.of(
             "source", mapSource,
             "reviewNo", reviewNo,

@@ -89,6 +89,7 @@
       modal-class="v2-unified-overlay"
       :title="dialogTitle"
       width="500px"
+      @closed="handleDialogClosed"
     >
       <el-form :model="form" :rules="rules" ref="formRef" label-width="80px">
         <el-form-item label="用户名" prop="username">
@@ -104,7 +105,53 @@
           <el-input v-model="form.nickname" placeholder="请输入昵称" />
         </el-form-item>
         <el-form-item label="头像" prop="avatar">
-          <el-input v-model="form.avatar" placeholder="请输入头像URL" />
+          <div class="avatar-editor">
+            <div
+              class="avatar-preview"
+              :class="{ 'is-dragover': avatarDragOver }"
+              @click="triggerAvatarPick"
+              @dragover.prevent="avatarDragOver = true"
+              @dragenter.prevent="avatarDragOver = true"
+              @dragleave.prevent="avatarDragOver = false"
+              @drop.prevent="handleAvatarDrop"
+              :title="'点击上传，或把图片拖进来'"
+            >
+              <!-- 选了新图就先显示本地预览，否则显示已保存的头像 -->
+              <el-avatar :size="56" :src="previewObjectUrl || form.avatar">
+                {{ (form.nickname || form.username || '?').charAt(0) }}
+              </el-avatar>
+              <div class="avatar-preview-mask">
+                <el-icon v-if="!avatarUploading"><Camera /></el-icon>
+                <el-icon v-else class="is-loading-icon"><Loading /></el-icon>
+              </div>
+            </div>
+            <div class="avatar-fields">
+              <div class="avatar-actions">
+                <el-button size="small" :loading="avatarUploading" @click="triggerAvatarPick">
+                  {{ avatarUploading ? '上传中' : '上传图片' }}
+                </el-button>
+                <el-button size="small" text @click="clearAvatar" v-if="form.avatar || pendingAvatarFile">清除</el-button>
+              </div>
+              <!-- 已选本地图片时给个提示，避免用户以为输入框坏了 -->
+              <div v-if="pendingAvatarFile" class="avatar-pending-tip">
+                已选择本地图片，点「确认」后上传
+              </div>
+              <!-- 保留手填入口：老数据或想直接用外链时还能用；选本地图后此框不参与保存 -->
+              <el-input
+                v-else
+                v-model="form.avatar"
+                placeholder="或直接填写头像 URL"
+                size="small"
+              />
+            </div>
+            <input
+              ref="avatarInputRef"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/bmp"
+              class="avatar-input"
+              @change="handleAvatarChange"
+            />
+          </div>
         </el-form-item>
         <el-form-item label="角色" prop="role">
           <el-select v-model="form.role" placeholder="请选择角色">
@@ -127,6 +174,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Camera, Loading } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
 const loading = ref(false)
@@ -140,6 +188,14 @@ const pageSize = ref(10)
 const dialogVisible = ref(false)
 const isCreate = ref(true)
 const formRef = ref()
+const avatarInputRef = ref(null)
+const avatarUploading = ref(false)
+// 选图后的待上传文件（点确认才真正提交，取消即丢弃）
+const pendingAvatarFile = ref(null)
+// 本地预览用的 blob URL，换图/关闭弹窗时要 revoke 掉
+const previewObjectUrl = ref('')
+// 打开编辑时记下原始头像，用于「清除」和上传失败回退
+const originalAvatar = ref('')
 const form = ref({
   id: null,
   username: '',
@@ -174,7 +230,18 @@ const formatCreatedAt = (val) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
+/** 释放 blob 预览并丢弃待上传文件；关闭弹窗或提交完成后调用 */
+const releasePreview = () => {
+  if (previewObjectUrl.value) {
+    URL.revokeObjectURL(previewObjectUrl.value)
+    previewObjectUrl.value = ''
+  }
+  pendingAvatarFile.value = null
+}
+
 const resetForm = () => {
+  releasePreview()
+  originalAvatar.value = ''
   form.value = {
     id: null,
     username: '',
@@ -197,6 +264,9 @@ const openCreateDialog = () => {
 
 const openEditDialog = (user) => {
   isCreate.value = false
+  releasePreview()
+  // 记下原始值，「清除」和上传失败时用它回退
+  originalAvatar.value = user.avatar || ''
   form.value = {
     id: user.id,
     username: user.username,
@@ -209,28 +279,119 @@ const openEditDialog = (user) => {
   dialogVisible.value = true
 }
 
+/** 弹窗关闭（含点取消、点遮罩、按 Esc）统一在这里清理预览资源 */
+const handleDialogClosed = () => {
+  releasePreview()
+  originalAvatar.value = ''
+}
+
+const triggerAvatarPick = () => {
+  if (avatarUploading.value) return
+  avatarInputRef.value?.click()
+}
+
+/** 拖拽悬停高亮，离开或放下时复位 */
+const avatarDragOver = ref(false)
+
+/** 把拖进来的文件走和「选择文件」完全相同的校验与预览流程 */
+const handleAvatarDrop = (event) => {
+  avatarDragOver.value = false
+  const file = event.dataTransfer?.files?.[0]
+  if (!file) return
+  // 复用 input 的 change 处理逻辑，避免两套校验规则走岔
+  handleAvatarChange({ target: { files: [file], value: '' } })
+}
+
+/**
+ * 选图后只做本地预览，不立刻上传。
+ * 上传放在 submitForm 里，用户点「取消」就等于什么都没发生——
+ * 否则弹窗还开着图就换了，点取消也回不去。
+ */
+const handleAvatarChange = (event) => {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    ElMessage.error('请选择图片文件（JPG/PNG/WebP）')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.error('头像图片不能超过 5MB')
+    return
+  }
+
+  // 换图时把上一个预览的 blob URL 释放掉，避免内存泄漏
+  if (previewObjectUrl.value) URL.revokeObjectURL(previewObjectUrl.value)
+
+  previewObjectUrl.value = URL.createObjectURL(file)
+  pendingAvatarFile.value = file
+}
+
+/** 点「清除」：恢复成原始头像，并丢弃待上传的文件 */
+const clearAvatar = () => {
+  if (previewObjectUrl.value) {
+    URL.revokeObjectURL(previewObjectUrl.value)
+    previewObjectUrl.value = ''
+  }
+  pendingAvatarFile.value = null
+  form.value.avatar = originalAvatar.value || ''
+}
+
+/**
+ * 把待上传的头像真正提交上去，返回应写进表单的 URL。
+ * userId 为 null 时说明用户还没建，返回 null 由调用方决定后续。
+ */
+const commitPendingAvatar = async (userId) => {
+  if (!pendingAvatarFile.value || !userId) return null
+  try {
+    const formData = new FormData()
+    formData.append('file', pendingAvatarFile.value)
+    const resp = await request.post(`/admin/users/${userId}/avatar`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    return resp.data?.data || null
+  } catch (error) {
+    console.error('[UserManage] 头像上传失败', error)
+    ElMessage.warning('头像上传失败，其他资料已保存，可稍后重试')
+    return null
+  }
+}
+
 const submitForm = async () => {
   try {
     await formRef.value.validate()
     if (isCreate.value) {
-      await request.post('/admin/users', form.value)
+      // 新建态直接提交表单 avatar（URL 或空），本地图片建完人再补传
+      const created = await request.post('/admin/users', { ...form.value })
+      const newUserId = created.data?.data?.id
+      if (pendingAvatarFile.value && newUserId) {
+        await commitPendingAvatar(newUserId)
+      }
       ElMessage.success('用户创建成功')
     } else {
-      // 使用表单中的用户ID
       const userId = form.value.id
       if (!userId) {
         ElMessage.error('用户ID缺失')
         return
       }
+
+      // 有暂存图片就先上传拿真实 URL；否则沿用表单里的 URL（可能是外链或已存路径）
+      let avatarToSave = form.value.avatar
+      if (pendingAvatarFile.value) {
+        avatarToSave = await commitPendingAvatar(userId) || originalAvatar.value || ''
+      }
+
       await request.put(`/admin/users/${userId}`, {
         username: form.value.username,
         email: form.value.email,
         nickname: form.value.nickname,
-        avatar: form.value.avatar,
+        avatar: avatarToSave,
         role: form.value.role
       })
       ElMessage.success('用户更新成功')
     }
+    releasePreview()
     dialogVisible.value = false
     loadUsers()
   } catch (error) {
@@ -379,6 +540,86 @@ const rejectApplication = async (application) => {
 
 <style scoped>
 .user-manage {
+  /* 头像编辑区：左边预览、右边上传按钮 + URL 兜底输入 */
+  .avatar-editor {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+
+    .avatar-preview {
+      position: relative;
+      width: 56px;
+      height: 56px;
+      flex: none;
+      border-radius: 50%;
+      overflow: hidden;
+      cursor: pointer;
+      background: #eef2f7;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+
+      .avatar-preview-mask {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: rgba(15, 23, 42, 0.55);
+        color: #fff;
+        opacity: 0;
+        transition: opacity 160ms ease;
+
+        .el-icon {
+          font-size: 17px;
+        }
+      }
+
+      &:hover .avatar-preview-mask {
+        opacity: 1;
+      }
+
+      /* 拖拽悬停时给个明确的可放置反馈 */
+      &.is-dragover {
+        box-shadow: 0 0 0 2px #6da9df, 0 0 14px rgba(109, 169, 223, 0.55);
+
+        .avatar-preview-mask {
+          opacity: 1;
+        }
+      }
+
+      .is-loading-icon {
+        animation: user-avatar-spin 900ms linear infinite;
+      }
+    }
+
+    .avatar-fields {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .avatar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .avatar-pending-tip {
+      font-size: 12px;
+      color: #b45309;
+      line-height: 1.4;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+    }
+
+    .avatar-input {
+      display: none;
+    }
+  }
+
   :deep(.el-table td.el-table__cell) {
     vertical-align: middle;
   }
@@ -421,5 +662,10 @@ const rejectApplication = async (application) => {
     color: #999;
     font-size: 12px;
   }
+}
+
+@keyframes user-avatar-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>

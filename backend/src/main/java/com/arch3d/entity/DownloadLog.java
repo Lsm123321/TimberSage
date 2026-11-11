@@ -11,7 +11,10 @@ import org.hibernate.annotations.OnDeleteAction;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "download_log")
+@Table(name = "download_log", indexes = {
+    // 明细页固定按下载时间倒序分页，加索引后翻页不必全表扫描 + 排序
+    @Index(name = "idx_download_log_time", columnList = "download_time")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

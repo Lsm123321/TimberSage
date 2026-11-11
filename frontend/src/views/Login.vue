@@ -33,7 +33,11 @@
       <div v-if="loginSuccess" class="login-success-mask" aria-hidden="true">
         <div class="boot-welcome-panel">
           <div class="scan-line"></div>
-          <div class="success-ring"></div>
+          <!-- 头像框：有头像就显示图片，没有就退回用户名首字，避免圆圈空着 -->
+          <div class="success-ring">
+            <img v-if="welcomeAvatar" :src="welcomeAvatar" :alt="welcomeName" class="ring-avatar" />
+            <span v-else class="ring-avatar-fallback">{{ welcomeInitial }}</span>
+          </div>
           <div class="boot-title">WELCOME</div>
           <div class="boot-subtitle">欢迎你，{{ welcomeName }}</div>
           <div class="boot-status">
@@ -135,7 +139,13 @@ const videoReady = ref(false)
 let fallbackTimer = null
 const captchaSvg = ref('')
 const loginSuccess = ref(false)
-const welcomeName = computed(() => loginForm.username || '用户')
+// 优先用接口返回的昵称：登录表单里填的是账号名，未必是用户想看到的称呼
+const welcomeName = computed(() => authStore.userInfo?.nickname || loginForm.username || '用户')
+const welcomeAvatar = computed(() => authStore.userInfo?.avatar || '')
+const welcomeInitial = computed(() => {
+  const name = welcomeName.value.trim()
+  return name ? name.charAt(0).toUpperCase() : '?'
+})
 const LOGIN_SUCCESS_REDIRECT_DELAY = 1500
 
 const degradeToFallback = (_reason) => {
@@ -399,6 +409,27 @@ const handleLogin = async () => {
       border: 2px solid rgba(152, 229, 255, 0.65);
       box-shadow: 0 0 28px rgba(131, 216, 255, 0.4);
       animation: ringPulseSoft 1s ease-out;
+      // 圆形裁切，让头像跟着圈走而不是溢出成方形
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      background: rgba(11, 23, 42, 0.55);
+
+      .ring-avatar {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: inherit;
+      }
+
+      .ring-avatar-fallback {
+        color: #d9f3ff;
+        font-size: 32px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-shadow: 0 0 16px rgba(124, 212, 255, 0.5);
+        user-select: none;
+      }
     }
 
     .boot-title {
@@ -452,7 +483,8 @@ const handleLogin = async () => {
   }
 
   .login-box {
-    width: 400px;
+    // 窄屏时两侧留 16px 边距，避免 400px 固定宽度把标题挤成多行
+    width: min(400px, calc(100vw - 32px));
     padding: 40px;
     background: rgba(255, 255, 255, 0.86);
     border: 1px solid rgba(255, 255, 255, 0.68);
@@ -478,15 +510,22 @@ const handleLogin = async () => {
       text-align: center;
       margin-bottom: 30px;
 
+      // 两行都锁死单行：字号随容器微收，但不下探到影响可读性的程度
       h1 {
-        font-size: 24px;
+        font-size: clamp(20px, 5.4vw, 26px);
         color: #333;
         margin-bottom: 10px;
+        line-height: 1.25;
+        letter-spacing: 1px;
+        white-space: nowrap;
       }
 
       p {
         color: #5f6a79;
-        font-size: 14px;
+        font-size: clamp(12px, 3.4vw, 15px);
+        line-height: 1.4;
+        letter-spacing: 0.3px;
+        white-space: nowrap;
       }
     }
 

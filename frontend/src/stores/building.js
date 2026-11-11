@@ -25,10 +25,10 @@ export const useBuildingStore = defineStore('building', () => {
     isFavorite: item?.isFavorite || false
   })
 
-  async function fetchBuildings(page = 1, pageSize = 10, keyword = '', dynasty = '') {
+  async function fetchBuildings(page = 1, pageSize = 10, keyword = '', dynasty = '', categoryId = null) {
     isLoading.value = true
     try {
-      const response = await getBuildings(page, pageSize, keyword, dynasty)
+      const response = await getBuildings(page, pageSize, keyword, dynasty, categoryId)
       const payload = response.data?.data ?? response.data
       const records = payload?.records ?? payload?.content ?? []
       const totalCount = payload?.total ?? payload?.totalElements ?? 0

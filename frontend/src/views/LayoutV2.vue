@@ -30,12 +30,17 @@
           <template #title>{{ t('mapExplorer') }}</template>
         </el-menu-item>
 
-        <el-menu-item index="/profile" :route="{ path: '/profile', query: { tab: 'favorites' } }">
+        <!--
+          「我的收藏」和「个人中心」都指向 /profile，只是 tab 不同。
+          el-menu 的 index 必须唯一，否则两项会同时高亮；
+          这里用带 tab 的虚拟 index，再由 activeMenu 计算属性映射回真实路由。
+        -->
+        <el-menu-item index="/profile?tab=favorites" :route="{ path: '/profile', query: { tab: 'favorites' } }">
           <el-icon><Star /></el-icon>
           <template #title>{{ t('favorites') }}</template>
         </el-menu-item>
 
-        <el-menu-item index="/profile">
+        <el-menu-item index="/profile" :route="{ path: '/profile' }">
           <el-icon><User /></el-icon>
           <template #title>{{ t('profile') }}</template>
         </el-menu-item>
@@ -172,11 +177,13 @@ import { ElMessage } from 'element-plus'
 import { House, OfficeBuilding, ChatDotRound, Star, User, Fold, Expand, ArrowDown, Setting, Search, TrendCharts, InfoFilled, Grid, Box, CollectionTag, Location } from '@element-plus/icons-vue'
 import FloatingUiControls from '@/components/FloatingUiControls.vue'
 import { useUiPreferences } from '@/composables/useUiPreferences'
+import { usePageSearchStore } from '@/stores/pageSearch'
 import request from '@/utils/request'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const pageSearchStore = usePageSearchStore()
 const searchInputRef = ref(null)
 const { t, language, initializePreferences } = useUiPreferences()
 
@@ -195,8 +202,29 @@ const currentRoute = computed(() => {
 const isAdmin = computed(() => authStore.userInfo?.role === 'admin')
 const showRoleUpgradeEntry = computed(() => authStore.userInfo?.role === 'user' || authStore.userInfo?.role === 'contributor')
 
-const activeMenu = computed(() => route.path)
+/**
+ * 菜单高亮项。
+ * /profile 被「我的收藏」和「个人中心」共用，靠 tab 参数区分：
+ * 带 tab=favorites 时高亮收藏，其余情况高亮个人中心。
+ * 这样两项不会同时亮起。
+ */
+const activeMenu = computed(() => {
+  if (route.path === '/profile') {
+    return route.query?.tab === 'favorites' ? '/profile?tab=favorites' : '/profile'
+  }
+  return route.path
+})
+
+/** 当前页是否支持「顶部搜索就地过滤」 */
+const isInlineFilterPage = computed(() => pageSearchStore.isInlineFilterRoute(route.path))
+
 const searchInputPlaceholder = computed(() => {
+  // 建筑列表 / 地图导览：顶部搜索直接过滤当前页，提示要说清楚
+  if (isInlineFilterPage.value) {
+    if (searchScope.value === 'dynasty') return t('searchPlaceholderDynasty')
+    if (searchScope.value === 'location') return t('searchPlaceholderLocation')
+    return t('searchInPagePlaceholder')
+  }
   if (searchScope.value === 'model') return t('searchPlaceholderModel')
   if (searchScope.value === 'dynasty') return t('searchPlaceholderDynasty')
   if (searchScope.value === 'location') return t('searchPlaceholderLocation')
@@ -244,18 +272,43 @@ const handleSearchEnter = () => {
   showSuggestions.value = false
   const normalizedQuery = searchQuery.value.trim()
   if (!normalizedQuery) {
+    // 就地过滤页允许空关键词=清空筛选；其他页面照旧提示
+    if (isInlineFilterPage.value) {
+      pageSearchStore.reset()
+      return
+    }
     ElMessage.warning(t('searchEmptyTip'))
     return
   }
+
+  // 建筑列表 / 地图导览：不再跳搜索结果页，直接驱动当前页过滤
+  if (isInlineFilterPage.value) {
+    pageSearchStore.submit(normalizedQuery, searchScope.value)
+    return
+  }
+
   const query = {}
   query.keyword = normalizedQuery
   query.scope = searchScope.value
   router.push({ path: '/search', query })
 }
 
+/**
+ * 建议项点击。
+ * 在地图导览页点建议＝在地图上定位该建筑，比跳详情更贴合当前场景；
+ * 其他页面维持跳详情页。
+ */
 const selectSuggestion = (suggestion) => {
   showSuggestions.value = false
   searchQuery.value = suggestion.modelName
+
+  if (isInlineFilterPage.value) {
+    // 统一用「建筑名」范围过滤，保证结果聚焦到这一条
+    searchScope.value = 'model'
+    pageSearchStore.submit(suggestion.modelName, 'model')
+    return
+  }
+
   router.push(`/buildings/${suggestion.id}`)
 }
 
@@ -284,6 +337,26 @@ watch(() => route.query, (newQuery) => {
   if (route.path === '/search') {
     searchQuery.value = newQuery.keyword || ''
     searchScope.value = newQuery.scope || 'all'
+  }
+})
+
+// 路由变化时切换 store 的活跃页，并让顶栏输入框跟着显示该页自己的关键词。
+// 各页状态相互独立，不再需要"离开就清空"——切回某页时它自己的筛选还在。
+watch(() => route.path, (newPath) => {
+  pageSearchStore.setActivePath(newPath)
+  if (pageSearchStore.isInlineFilterRoute(newPath)) {
+    searchQuery.value = pageSearchStore.keyword
+    searchScope.value = pageSearchStore.scope
+  }
+}, { immediate: true })
+
+/**
+ * 页面内点「清除筛选」时，store 里的 keyword 会被置空。
+ * 顶栏输入框得跟着清空，否则会出现"页面已恢复全部、搜索框里还留着旧词"的错位。
+ */
+watch(() => pageSearchStore.keyword, (val) => {
+  if (!val && searchQuery.value.trim()) {
+    searchQuery.value = ''
   }
 })
 
@@ -493,7 +566,9 @@ onUnmounted(() => {
     flex-direction: column;
     padding: 14px 14px 16px 0;
     gap: 12px;
-    overflow: hidden;
+    // 原本是 hidden，但那会把 header 里搜索建议下拉超出容器的部分裁掉；
+    // 改为 visible，横向溢出交给子元素自己控制
+    overflow: visible;
 
     .header {
       height: 78px;
@@ -503,6 +578,9 @@ onUnmounted(() => {
       padding: 0 18px;
       border-radius: var(--v2-radius-xl);
       position: relative;
+      // 搜索建议下拉要压过页面内容（地图卡片等自带玻璃质感和层叠上下文），
+      // 这里给 header 建一个高层级上下文，否则下拉下半截会被后渲染的页面元素盖住
+      z-index: 20;
       transform-style: preserve-3d;
       animation: fadeInDown 380ms var(--v2-ease);
 

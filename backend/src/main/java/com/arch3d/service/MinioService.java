@@ -11,6 +11,8 @@ public interface MinioService {
 
     String uploadThumbnail(MultipartFile file, String objectName);
 
+    String uploadAvatar(MultipartFile file, String objectName);
+
     InputStream downloadFile(String bucket, String objectName);
 
     void deleteFile(String bucket, String objectName);
@@ -20,6 +22,8 @@ public interface MinioService {
     String getModelFileUrl(String objectName);
 
     String getThumbnailUrl(String objectName);
+
+    String getAvatarUrl(String objectName);
 
     boolean bucketExists(String bucket);
 

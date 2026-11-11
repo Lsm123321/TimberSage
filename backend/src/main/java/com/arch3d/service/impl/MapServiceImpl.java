@@ -101,12 +101,25 @@ public class MapServiceImpl implements MapService {
 
     @Override
     public Map<String, Object> getMapOverview(String keyword) {
+        return getMapOverview(keyword, "all");
+    }
+
+    /**
+     * 地图点位检索。
+     * scope 决定拿哪个字段匹配：model=模型名、dynasty=朝代、location=地点、all=三者任一。
+     * 与顶部全局搜索对齐，避免同一个页面出现两套互不相通的搜索规则。
+     */
+    @Override
+    public Map<String, Object> getMapOverview(String keyword, String scope) {
+        String kw = keyword == null ? "" : keyword.trim();
+        String normalizedScope = scope == null || scope.isBlank() ? "all" : scope.trim().toLowerCase();
+
         List<BuildingModel> publishedModels = modelRepository.findAll()
             .stream()
             .filter(item -> item.getStatus() != null && item.getStatus() == 1)
             // 无模型名不显示在地图点位上
             .filter(item -> item.getModelName() != null && !item.getModelName().isBlank())
-            .filter(item -> keyword == null || keyword.isBlank() || item.getModelName().contains(keyword))
+            .filter(item -> matchesKeyword(item, kw, normalizedScope))
             .collect(Collectors.toList());
 
         List<Map<String, Object>> points = new ArrayList<>();
@@ -135,7 +148,8 @@ public class MapServiceImpl implements MapService {
                 "xPercent", toXPercent(lng),
                 "yPercent", toYPercent(lat),
                 "hint", model.getModelName() == null ? "古建点位" : model.getModelName(),
-                "location", model.getLocation() == null ? "" : model.getLocation()
+                "location", normalize(model.getLocation()),
+                "dynasty", normalize(model.getDynasty())
             ));
         }
 
@@ -244,6 +258,50 @@ public class MapServiceImpl implements MapService {
             + "\n观看建议：建议先看整体形制，再关注关键节点，并结合"
             + (location == null || location.isBlank() ? "地域文脉" : location)
             + "理解其演变逻辑。";
+    }
+
+    /**
+     * 判断模型是否命中关键词。空关键词视为全部命中。
+     * 地点匹配同时看 location 字段和地区中文名（比如搜"江苏"能命中"南京"的模型），
+     * 否则用户按省份搜会一无所获。
+     * 注意这里只用本地推断 inferRegionCode，不能调 resolveRegionCode：
+     * 后者在猜不出来时会请求 AI，放进逐条过滤里搜索会变成几十次网络调用。
+     */
+    private boolean matchesKeyword(BuildingModel model, String keyword, String scope) {
+        if (keyword.isEmpty()) {
+            return true;
+        }
+        String kw = keyword.toLowerCase();
+
+        // 用清洗后的字段匹配，否则数据里的制表符会让 contains 意外失败
+        boolean hitModel = containsIgnoreCase(normalize(model.getModelName()), kw);
+        boolean hitDynasty = containsIgnoreCase(normalize(model.getDynasty()), kw);
+        boolean hitLocation = containsIgnoreCase(normalize(model.getLocation()), kw);
+
+        if (!hitLocation) {
+            String regionCode = inferRegionCode(model.getLocation());
+            String regionName = REGION_NAME.getOrDefault(regionCode, "");
+            hitLocation = containsIgnoreCase(regionName, kw);
+        }
+
+        return switch (scope) {
+            case "model" -> hitModel;
+            case "dynasty" -> hitDynasty;
+            case "location" -> hitLocation;
+            default -> hitModel || hitDynasty || hitLocation;
+        };
+    }
+
+    private boolean containsIgnoreCase(String source, String lowerKeyword) {
+        return source != null && source.toLowerCase().contains(lowerKeyword);
+    }
+
+    /**
+     * 库里部分老数据的朝代/地点前面带了制表符（导入时留下的），
+     * 直接返回会让前端标签出现诡异缩进，这里统一清掉首尾空白。
+     */
+    private String normalize(String raw) {
+        return raw == null ? "" : raw.replaceAll("[\\s\\u00A0]+", " ").trim();
     }
 
     private String resolveRegionCode(BuildingModel model) {

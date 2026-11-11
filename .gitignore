@@ -7,6 +7,12 @@
 backend/config/
 # 真实域名反代配置，模板见 Caddyfile.timbersage.example
 Caddyfile.timbersage
+# 证书 / 私钥
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
 
 # ===== 数据备份 / 大体积非代码资产 =====
 # 数据库备份与 MinIO 二进制（约 100MB，含业务数据）
@@ -15,6 +21,14 @@ backup/
 作品展示.mp4
 # 测试用模型素材（临时目录，用完即删）
 大雄宝殿模型素材*
+
+# ===== 开发过程的临时产物，不属于项目本体 =====
+# 代码高亮展示页（调试时截图用）
+code_*.html
+# 与 README.md 重复的旧版说明
+readme.txt
+# 打包分发的压缩包
+*.zip
 
 # ===== IDE / 编辑器 =====
 .idea/
