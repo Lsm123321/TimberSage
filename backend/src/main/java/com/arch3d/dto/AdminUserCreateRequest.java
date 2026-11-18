@@ -2,6 +2,7 @@ package com.arch3d.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -22,6 +23,7 @@ public class AdminUserCreateRequest {
     @Email(message = "邮箱格式不正确")
     private String email;
 
+    @Pattern(regexp = "^$|^(https?://|/(?!/)).*", message = "头像地址不合法")
     private String avatar;
     private String nickname;
     private String role;

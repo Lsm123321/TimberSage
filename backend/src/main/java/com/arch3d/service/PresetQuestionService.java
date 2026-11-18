@@ -14,6 +14,14 @@ public interface PresetQuestionService {
     PresetQuestion updateQuestion(Integer questionId, PresetQuestionUpdateRequest request);
     void deleteQuestion(Integer questionId);
     List<PresetQuestionResponse> getQuestions(Integer modelId, Integer categoryId);
+
+    /**
+     * 按展示场景取预设问题。
+     *
+     * @param scene chat = AI 问答页；model = 模型详情页悬浮问答；null = 不限场景
+     */
+    List<PresetQuestionResponse> getQuestions(Integer modelId, Integer categoryId, String scene);
+
     Page<PresetQuestionResponse> getQuestionsPage(Pageable pageable);
     void incrementClickCount(Integer questionId);
 }

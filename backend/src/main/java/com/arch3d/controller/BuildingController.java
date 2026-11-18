@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -54,6 +55,9 @@ public class BuildingController {
     }
 
     @PostMapping
+    // 古建筑是全站公共数据，写入必须限管理员；
+    // 之前只靠 SecurityConfig 的“已登录”兜底，任何注册用户都能改/删。
+    @PreAuthorize("hasRole('admin')")
     @Operation(summary = "创建建筑", description = "创建新的古建筑信息")
     public ResponseEntity<ApiResponse<BuildingDTO>> createBuilding(@RequestBody BuildingDTO buildingDTO) {
         BuildingDTO created = buildingService.createBuilding(buildingDTO);
@@ -61,6 +65,7 @@ public class BuildingController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('admin')")
     @Operation(summary = "更新建筑", description = "更新古建筑信息")
     public ResponseEntity<ApiResponse<BuildingDTO>> updateBuilding(
             @PathVariable Integer id,
@@ -70,6 +75,7 @@ public class BuildingController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('admin')")
     @Operation(summary = "删除建筑", description = "删除古建筑信息")
     public ResponseEntity<ApiResponse<Void>> deleteBuilding(@PathVariable Integer id) {
         buildingService.deleteBuilding(id);

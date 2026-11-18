@@ -27,8 +27,40 @@ public class JwtTokenUtil {
     @Value("${jwt.prefix}")
     private String prefix;
 
+    /** HS256 要求密钥至少 256 bit，低于这个长度直接拒绝启动 */
+    private static final int MIN_SECRET_BYTES = 32;
+
+    private SecretKey signingKey;
+
+    /**
+     * 启动时校验密钥。
+     *
+     * 为什么不在每次调用时判断：密钥强度是部署配置问题，应该在启动阶段就炸出来，
+     * 而不是等到线上签发 token 时才失败；也不会因为一次异常而静默降级成弱密钥。
+     */
+    @jakarta.annotation.PostConstruct
+    void validateSecret() {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                "JWT 密钥未配置：请通过环境变量 JWT_SECRET 提供一个长度不少于 32 字节的随机字符串");
+        }
+        byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                "JWT 密钥过短（" + bytes.length + " 字节）：HS256 至少需要 " + MIN_SECRET_BYTES + " 字节");
+        }
+        if (secret.toLowerCase().contains("change-this") || secret.toLowerCase().contains("your-jwt")) {
+            throw new IllegalStateException("JWT 密钥仍是示例值，请在部署环境中替换为随机密钥");
+        }
+        this.signingKey = Keys.hmacShaKeyFor(bytes);
+    }
+
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        if (signingKey == null) {
+            // PostConstruct 已保证不会走到这里；兜底再校验一次，防止被反射绕过
+            validateSecret();
+        }
+        return signingKey;
     }
 
     public String generateToken(String username, String role) {

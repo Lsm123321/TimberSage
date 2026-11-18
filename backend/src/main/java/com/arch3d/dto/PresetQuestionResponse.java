@@ -20,6 +20,8 @@ public class PresetQuestionResponse {
     private Integer sortOrder;
     private Integer clickCount;
     private Boolean enabled;
+    /** 展示场景：all / chat / model */
+    private String scene;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

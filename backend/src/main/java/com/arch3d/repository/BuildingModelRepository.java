@@ -89,4 +89,33 @@ public interface BuildingModelRepository extends JpaRepository<BuildingModel, In
 
     long countByStatus(Integer status);
     long countByCreatedAtBetween(java.time.LocalDateTime start, java.time.LocalDateTime end);
+
+    /**
+     * 知识图谱聚合：一次拿全 66 个模型的分类和知识条数。
+     *
+     * 为什么用 nativeQuery：要 LEFT JOIN 两张表再做条件聚合，JPQL 写起来很别扭，
+     * 而且这里只要几个标量字段，不涉及实体映射。
+     *
+     * 为什么用子查询而不是直接 JOIN 再 GROUP BY：kb_entry 一个模型有 12 条，
+     * 直接 JOIN 会把 building_model 的行放大，以后再加别的表就会重复计数。
+     */
+    @Query(value = """
+            SELECT m.id            AS model_id,
+                   m.model_name    AS model_name,
+                   COALESCE(m.category_id, 0) AS category_id_or0,
+                   COALESCE(c.category_name, '未分类') AS category_name,
+                   COALESCE(k.entry_count, 0) AS entry_count,
+                   COALESCE(k.total_hits, 0)  AS total_hits
+            FROM building_model m
+            LEFT JOIN building_category c ON m.category_id = c.id
+            LEFT JOIN (
+                SELECT model_id, COUNT(*) AS entry_count, COALESCE(SUM(hit_count), 0) AS total_hits
+                FROM kb_entry
+                WHERE status = 1
+                GROUP BY model_id
+            ) k ON k.model_id = m.id
+            WHERE m.status = 1
+            ORDER BY COALESCE(m.category_id, 0), m.id
+            """, nativeQuery = true)
+    List<java.util.Map<String, Object>> aggregateForGraph();
 }

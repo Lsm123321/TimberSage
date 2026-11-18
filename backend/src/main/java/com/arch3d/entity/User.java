@@ -1,5 +1,6 @@
 package com.arch3d.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,6 +24,10 @@ public class User {
     @Column(name = "username", nullable = false, length = 64, unique = true)
     private String username;
 
+    // 密码哈希只用于服务端认证，绝不能出现在任何 JSON 响应里。
+    // 之前 AdminController 直接返回 User 实体，Jackson 会把 passwordHash
+    // 和 getPassword() 一起序列化出去，等于把全站用户的 bcrypt 哈希交给管理员接口。
+    @JsonIgnore
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
@@ -55,7 +60,9 @@ public class User {
         updatedAt = LocalDateTime.now();
     }
 
-    // Spring Security 的 UserDetails 要从 getPassword() 拿密码
+    // Spring Security 的 UserDetails 要从 getPassword() 拿密码；
+    // 但这个 getter 同样会被 Jackson 识别成 JSON 的 "password" 字段，必须一起忽略。
+    @JsonIgnore
     public String getPassword() {
         return passwordHash;
     }

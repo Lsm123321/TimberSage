@@ -14,4 +14,13 @@ public interface ModelFeedbackRepository extends JpaRepository<ModelFeedback, In
     long countByStatus(Integer status);
     void deleteByModelId(Integer modelId);
     void deleteByUserId(Integer userId);
+
+    /**
+     * 公开展示用：只取「已采纳」的纠错。
+     * 待审核(0) 和已驳回(2) 一律不进前端列表，避免未核实内容被当成官方结论。
+     */
+    Page<ModelFeedback> findByModelIdAndStatus(Integer modelId, Integer status, Pageable pageable);
+
+    /** 我的反馈：本人能看到自己的全部状态；管理员审核后他人才能看到 */
+    Page<ModelFeedback> findByUserIdAndModelId(Integer userId, Integer modelId, Pageable pageable);
 }

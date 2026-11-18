@@ -6,6 +6,7 @@ import com.arch3d.repository.BuildingCategoryRepository;
 import com.arch3d.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -20,50 +21,43 @@ public class DataInitializer implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
 
     /**
+     * 仅用于首次创建 admin/testuser 的初始密码。
+     * 生产环境应通过 APP_ADMIN_INIT_PASSWORD 注入，并在首次登录后立即修改。
+     */
+    @Value("${app.admin.init-password:123456}")
+    private String initialPassword;
+
+    /**
      * 启动时保证 admin/testuser 和默认分类存在。
-     * 注意：每次启动都会把这两个账号的密码重置回 123456，演示方便但别上生产。
+     *
+     * 重要：只在账号缺失时创建，绝不覆盖已有账号的密码和角色。
+     * 旧逻辑每次启动都重置成 123456，等于给公网部署留了一个永久后门：
+     * 管理员改完密码后只要重启服务就会被打回默认口令。
      */
     @Override
     public void run(String... args) {
-        User admin = userRepository.findByUsername("admin").orElse(null);
-        if (admin == null) {
-            admin = User.builder()
+        if (userRepository.findByUsername("admin").isEmpty()) {
+            User admin = User.builder()
                 .username("admin")
-                .passwordHash(passwordEncoder.encode("123456"))
+                .passwordHash(passwordEncoder.encode(initialPassword))
                 .email("admin@arch3d.com")
                 .nickname("管理员")
                 .role("admin")
                 .build();
             userRepository.save(admin);
-            log.info("Default admin user created: username=admin");
-        } else {
-            // 每次启动都刷一遍默认值，防止有人改乱了登不进去
-            admin.setPasswordHash(passwordEncoder.encode("123456"));
-            admin.setEmail("admin@arch3d.com");
-            admin.setNickname("管理员");
-            admin.setRole("admin");
-            userRepository.save(admin);
-            log.info("Default admin user updated: username=admin");
+            log.warn("Default admin user created: username=admin，请登录后立即修改初始密码");
         }
 
-        User testUser = userRepository.findByUsername("testuser").orElse(null);
-        if (testUser == null) {
-            testUser = User.builder()
+        if (userRepository.findByUsername("testuser").isEmpty()) {
+            User testUser = User.builder()
                 .username("testuser")
-                .passwordHash(passwordEncoder.encode("123456"))
+                .passwordHash(passwordEncoder.encode(initialPassword))
                 .email("testuser@arch3d.com")
                 .nickname("测试用户")
                 .role("user")
                 .build();
             userRepository.save(testUser);
             log.info("Default test user created: username=testuser");
-        } else {
-            testUser.setPasswordHash(passwordEncoder.encode("123456"));
-            testUser.setEmail("testuser@arch3d.com");
-            testUser.setNickname("测试用户");
-            testUser.setRole("user");
-            userRepository.save(testUser);
-            log.info("Default test user updated: username=testuser");
         }
 
         initializeDefaultCategories();

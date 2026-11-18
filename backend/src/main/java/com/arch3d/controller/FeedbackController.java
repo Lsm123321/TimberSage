@@ -54,6 +54,42 @@ public class FeedbackController {
         return ResponseEntity.ok(feedbacks);
     }
 
+    /**
+     * 前端公开纠错列表：只返回管理员已采纳的记录。
+     * 待审核、已驳回的提交仅本人和管理员可见，
+     * 避免未经核实的内容直接出现在模型详情页被其他用户看到。
+     */
+    @GetMapping("/models/{modelId}/feedback")
+    @Operation(summary = "获取模型已采纳的纠错", description = "仅返回审核通过的纠错记录")
+    public ResponseEntity<Page<ModelFeedbackResponse>> getPublishedModelFeedbacks(
+            @PathVariable Integer modelId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int pageSize) {
+
+        Pageable pageable = PageRequest.of(Math.max(page - 1, 0), Math.max(pageSize, 1),
+                Sort.by("createdAt").descending());
+        return ResponseEntity.ok(feedbackService.getPublishedModelFeedbacks(modelId, pageable));
+    }
+
+    /**
+     * 当前用户在该模型下提交的反馈（含待审核）。
+     * 用 isAuthenticated 而不是匿名可访问：只有本人能看自己的提交记录。
+     */
+    @GetMapping("/models/{modelId}/feedback/mine")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "获取我的模型纠错提交", description = "含待审核状态，仅本人可见")
+    public ResponseEntity<Page<ModelFeedbackResponse>> getMyModelFeedbacks(
+            @PathVariable Integer modelId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int pageSize,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        Pageable pageable = PageRequest.of(Math.max(page - 1, 0), Math.max(pageSize, 1),
+                Sort.by("createdAt").descending());
+        return ResponseEntity.ok(
+                feedbackService.getMyModelFeedbacks(modelId, userPrincipal.getId(), pageable));
+    }
+
     @PutMapping("/admin/model-feedback/{id}")
     @PreAuthorize("hasRole('admin')")
     @Operation(summary = "处理模型纠错反馈", description = "管理员处理（采纳/驳回）模型纠错反馈")

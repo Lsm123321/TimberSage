@@ -3,13 +3,17 @@ package com.arch3d.service.impl;
 import com.arch3d.client.DeepSeekClient;
 import com.arch3d.dto.ChatFeedbackRequest;
 import com.arch3d.dto.ChatStreamMeta;
+import com.arch3d.dto.KbSource;
 import com.arch3d.entity.AiChatHistory;
 import com.arch3d.entity.BuildingModel;
+import com.arch3d.entity.KbEntry;
 import com.arch3d.entity.User;
 import com.arch3d.repository.AiChatHistoryRepository;
 import com.arch3d.repository.BuildingModelRepository;
 import com.arch3d.repository.UserRepository;
 import com.arch3d.service.ChatService;
+import com.arch3d.service.KnowledgeService;
+import com.arch3d.service.PlatformKnowledgeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -43,6 +47,8 @@ public class ChatServiceImpl implements ChatService {
     private final AiChatHistoryRepository chatHistoryRepository;
     private final UserRepository userRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final KnowledgeService knowledgeService;
+    private final PlatformKnowledgeService platformKnowledgeService;
 
     private static final String RATE_LIMIT_PREFIX = "chat:rate:limit:";
     private static final int MAX_REQUESTS_PER_MINUTE = 5;
@@ -77,14 +83,67 @@ public class ChatServiceImpl implements ChatService {
             }
         }
 
+        // 当前用户角色：决定"能不能点赞/上传"这类答案的分寸
+        String role = null;
+        if (userId != null) {
+            role = userRepository.findById(userId).map(User::getRole).orElse(null);
+        }
+
+        /*
+          平台类问题（怎么点赞、一共收录多少模型、我能不能上传）先走确定性回答。
+          这类问题问的是"这个系统怎么用"，让大模型自由发挥容易编出不存在的入口，
+          直接用真实数据 + 角色权限拼答案更稳，也不消耗 token。
+        */
+        if (platformKnowledgeService != null) {
+            var platformAnswer = platformKnowledgeService.answerPlatformQuestion(question, role);
+            if (platformAnswer.isPresent()) {
+                replayPlainAnswer(platformAnswer.get(), onChunk, onComplete);
+                return;
+            }
+        }
+
+        // 先查知识库：命中就直接回放审核过的答案，不消耗 token。
+        // 放在限流之后、调大模型之前，这样命中时也只算一次请求配额，行为更一致。
+        if (knowledgeService != null) {
+            try {
+                KnowledgeService.LookupResult kb =
+                        knowledgeService.lookup(question, modelId, modelName);
+                if (kb.hit() && kb.entry() != null) {
+                    replayFromKnowledge(kb, onChunk, onComplete);
+                    return;
+                }
+                // 越界/通识拦截：把原因带回去，前端据此展示兜底卡片，
+                // 而不是让大模型硬编一个看似专业的答案
+                if (kb.fallbackReason() != null) {
+                    onComplete.accept(ChatStreamMeta.builder()
+                            .confidence("low")
+                            .references(List.of())
+                            .evidenceItems(List.of())
+                            .noEvidence(true)
+                            .generatedAt(LocalDateTime.now().format(DATETIME_FORMATTER))
+                            .fallbackReason(kb.fallbackReason())
+                            .suggestedQuestions(suggestQuestionsQuietly(modelId))
+                            .build());
+                    return;
+                }
+            } catch (Exception e) {
+                // 知识库只是加速层，任何异常都不能影响正常问答
+                log.warn("知识库检索异常，回落大模型: {}", e.getMessage());
+            }
+        }
+
         log.info("Chat stream start: sessionId={}, userId={}, modelId={}, questionLen={}",
             sessionId, userId, modelId, question != null ? question.length() : 0);
 
         // 边生成边把 chunk 抛回给 Controller（转成 SSE message 事件），
         // 生成结束后再构造 meta（引用/置信度）一起回传
         StringBuilder answerBuffer = new StringBuilder();
-        deepSeekClient.streamChat(question, modelId != null ? modelId.toString() : null, 
-                modelName, dynasty, location, new DeepSeekClient.DeepSeekCallback() {
+        // 把平台功能/权限/实时数据追加进系统提示，普通问答也能"知道这个网站"
+        String platformContext = platformKnowledgeService != null
+                ? platformKnowledgeService.buildPromptSection(role)
+                : null;
+        deepSeekClient.streamChat(question, modelId != null ? modelId.toString() : null,
+                modelName, dynasty, location, platformContext, new DeepSeekClient.DeepSeekCallback() {
                     @Override
                     public void onChunk(String chunk) {
                         answerBuffer.append(chunk);
@@ -107,6 +166,102 @@ public class ChatServiceImpl implements ChatService {
                         onError.accept(e);
                     }
                 });
+    }
+
+    /**
+     * 知识库命中时，把审核过的答案切片回放。
+     *
+     * 为什么切片而不是一次性发：一整段文字瞬间出现，和模型逐字输出的观感差别太大，
+     * 用户会怀疑答案是不是真的。用 30 字/45ms 的节奏推送，体验和大模型一致，
+     * 200 字的答案约 300ms 出完，仍然比调 API 快一个数量级。
+     */
+    private void replayFromKnowledge(KnowledgeService.LookupResult result,
+                                     java.util.function.Consumer<String> onChunk,
+                                     java.util.function.Consumer<ChatStreamMeta> onComplete) {
+        KbEntry entry = result.entry();
+        String answer = entry.getAnswer() == null ? "" : entry.getAnswer();
+
+        for (String chunk : knowledgeService.splitForReplay(answer)) {
+            onChunk.accept(chunk);
+            try {
+                Thread.sleep(knowledgeService.getReplayIntervalMs());
+            } catch (InterruptedException e) {
+                // 用户断开连接时提前结束回放，不用把剩下的内容读完
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+
+        // 命中计数放最后，即使中途断开也能记上
+        try {
+            knowledgeService.recordHit(entry);
+        } catch (Exception e) {
+            log.debug("命中计数失败: {}", e.getMessage());
+        }
+
+        // 模型名从 LookupResult 里取，不要碰 entry.getModel()：
+        // 那是个 LAZY 代理，此刻事务已结束，访问会抛
+        // "could not initialize proxy - no Session"，整个回答就废了。
+        onComplete.accept(ChatStreamMeta.builder()
+                // 知识库答案经过人工审核，置信度直接给高
+                .confidence("high")
+                .references(List.of())
+                // 不再往 evidenceItems 里塞"来自知识库"的说明：
+                // 前端有专门的 kbSource 标签，重复写会让气泡里出现两遍同一件事
+                .evidenceItems(List.of())
+                .noEvidence(false)
+                .generatedAt(LocalDateTime.now().format(DATETIME_FORMATTER))
+                .kbSource(KbSource.builder()
+                        .entryId(entry.getId())
+                        .modelName(result.modelName())
+                        .questionType(entry.getQuestionType())
+                        .hitCount((entry.getHitCount() == null ? 0 : entry.getHitCount()) + 1)
+                        .reviewedAt(entry.getReviewedAt() == null ? null
+                                : entry.getReviewedAt().format(DATETIME_FORMATTER))
+                        .matchLayer(result.layer())
+                        .build())
+                .build());
+    }
+
+    /**
+     * 回放一段"平台内置答案"（不是知识库条目，也没有审核记录）。
+     * 仍然切片推送，保持与模型输出一致的节奏；置信度给 high，
+     * 因为内容是按真实数据和权限规则拼的，不是模型猜的。
+     */
+    private void replayPlainAnswer(String answer,
+                                   java.util.function.Consumer<String> onChunk,
+                                   java.util.function.Consumer<ChatStreamMeta> onComplete) {
+        for (String chunk : knowledgeService.splitForReplay(answer)) {
+            onChunk.accept(chunk);
+            try {
+                Thread.sleep(knowledgeService.getReplayIntervalMs());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        onComplete.accept(ChatStreamMeta.builder()
+                .confidence("high")
+                .references(List.of())
+                .evidenceItems(List.of())
+                .noEvidence(false)
+                .generatedAt(LocalDateTime.now().format(DATETIME_FORMATTER))
+                .build());
+    }
+
+    /** 推荐问法取失败也不能影响主流程 */
+    private List<String> suggestQuestionsQuietly(Integer modelId) {
+        if (modelId == null) {
+            return List.of();
+        }
+        try {
+            return knowledgeService.suggestQuestions(modelId, 3).stream()
+                    .map(KbEntry::getQuestion)
+                    .filter(q -> q != null && !q.isBlank())
+                    .toList();
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     @Override

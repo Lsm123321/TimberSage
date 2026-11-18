@@ -40,6 +40,15 @@ public class PresetQuestion {
     @Column(name = "sort_order")
     private Integer sortOrder;
 
+    /**
+     * 展示场景，用来把「AI 问答页」和「模型详情页悬浮问答」的预设问题分开。
+     * all = 两处都显示；chat = 仅 AI 问答页；model = 仅模型详情页。
+     * 老数据没有这个字段时按 all 处理，行为与升级前一致。
+     */
+    @Column(name = "scene", length = 16)
+    @Builder.Default
+    private String scene = "all";
+
     @Column(name = "click_count", nullable = false)
     @Builder.Default
     private Integer clickCount = 0;

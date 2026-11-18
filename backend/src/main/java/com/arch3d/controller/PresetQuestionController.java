@@ -126,12 +126,14 @@ public class PresetQuestionController {
 
     // 普通用户获取预设问题
     @GetMapping("/preset-questions")
-    @Operation(summary = "获取预设问题", description = "获取指定模型的预设问题")
+    @Operation(summary = "获取预设问题",
+            description = "获取指定模型的预设问题；scene 区分场景：chat=AI问答页，model=模型详情页悬浮问答，不传=全部")
     public ResponseEntity<List<PresetQuestionResponse>> getQuestions(
             @RequestParam(required = false) Integer modelId,
-            @RequestParam(required = false) Integer categoryId) {
+            @RequestParam(required = false) Integer categoryId,
+            @RequestParam(required = false) String scene) {
 
-        List<PresetQuestionResponse> questions = questionService.getQuestions(modelId, categoryId);
+        List<PresetQuestionResponse> questions = questionService.getQuestions(modelId, categoryId, scene);
         return ResponseEntity.ok(questions);
     }
 

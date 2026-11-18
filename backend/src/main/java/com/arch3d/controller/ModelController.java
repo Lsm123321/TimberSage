@@ -261,8 +261,8 @@ public class ModelController {
     }
 
     @GetMapping("/{id}/file-url")
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "获取模型文件URL（预览）", description = "用于在线预览/管理端加载 GLB，不计入下载统计")
+    @Operation(summary = "获取模型文件URL（预览）",
+            description = "用于在线预览/管理端加载 GLB，不计入下载统计。游客可预览已发布模型；下载另走 download-url")
     public ResponseEntity<DownloadUrlResponse> getModelFileUrl(
             @PathVariable Integer id,
             @AuthenticationPrincipal UserPrincipal userPrincipal,

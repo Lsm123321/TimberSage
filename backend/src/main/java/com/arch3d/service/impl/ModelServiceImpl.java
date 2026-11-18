@@ -145,6 +145,13 @@ public class ModelServiceImpl implements ModelService {
         if (originalFileName == null || !originalFileName.toLowerCase().endsWith(".glb")) {
             throw new IllegalArgumentException("仅支持上传 .glb 格式的3D模型文件");
         }
+        /*
+          只校验扩展名不够：任意文件改名成 .glb 也能传上来。
+          这里再验一次文件头魔数——GLB 前 4 字节固定是 "glTF"。
+        */
+        if (!hasGlbMagic(modelFile)) {
+            throw new IllegalArgumentException("文件内容不是有效的 .glb 模型（文件头校验失败）");
+        }
         if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
             String thumbnailName = thumbnailFile.getOriginalFilename();
             String lowerName = thumbnailName == null ? "" : thumbnailName.toLowerCase();
@@ -154,6 +161,10 @@ public class ModelServiceImpl implements ModelService {
                 || lowerName.endsWith(".webp");
             if (!supported) {
                 throw new IllegalArgumentException("缩略图仅支持 .png/.jpg/.jpeg/.webp 格式");
+            }
+            // 缩略图同样验魔数，避免把 HTML/SVG 这类可执行内容塞进图片位
+            if (!hasImageMagic(thumbnailFile)) {
+                throw new IllegalArgumentException("缩略图内容与扩展名不符（文件头校验失败）");
             }
         }
 
@@ -516,6 +527,45 @@ public class ModelServiceImpl implements ModelService {
             extension = originalFilename.substring(originalFilename.lastIndexOf("."));
         }
         return java.util.UUID.randomUUID().toString() + extension;
+    }
+
+    /**
+     * GLB 文件头校验：前 4 字节必须是 ASCII "glTF"。
+     * 只读前 12 字节，不会把整个文件载入内存。
+     */
+    private boolean hasGlbMagic(org.springframework.web.multipart.MultipartFile file) {
+        try (java.io.InputStream in = file.getInputStream()) {
+            byte[] head = in.readNBytes(4);
+            return head.length == 4
+                && head[0] == 'g' && head[1] == 'l' && head[2] == 'T' && head[3] == 'F';
+        } catch (Exception e) {
+            log.warn("读取模型文件头失败: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 图片魔数校验，覆盖 PNG / JPEG / WebP(GIF 不在允许列表里)。
+     * WebP 是 RIFF 容器，需要看第 8-11 字节是否为 "WEBP"。
+     */
+    private boolean hasImageMagic(org.springframework.web.multipart.MultipartFile file) {
+        try (java.io.InputStream in = file.getInputStream()) {
+            byte[] head = in.readNBytes(12);
+            if (head.length < 12) {
+                return false;
+            }
+            // PNG: 89 50 4E 47
+            boolean png = (head[0] & 0xFF) == 0x89 && head[1] == 'P' && head[2] == 'N' && head[3] == 'G';
+            // JPEG: FF D8 FF
+            boolean jpeg = (head[0] & 0xFF) == 0xFF && (head[1] & 0xFF) == 0xD8 && (head[2] & 0xFF) == 0xFF;
+            // WebP: "RIFF"****"WEBP"
+            boolean webp = head[0] == 'R' && head[1] == 'I' && head[2] == 'F' && head[3] == 'F'
+                && head[8] == 'W' && head[9] == 'E' && head[10] == 'B' && head[11] == 'P';
+            return png || jpeg || webp;
+        } catch (Exception e) {
+            log.warn("读取缩略图文件头失败: {}", e.getMessage());
+            return false;
+        }
     }
 
     private String normalizeTags(String tagsRaw) {

@@ -46,6 +46,24 @@ public class DownloadServiceImpl implements DownloadService {
         BuildingModel model = modelRepository.findById(modelId)
             .orElseThrow(() -> new RuntimeException("模型不存在"));
 
+        /*
+          游客（userId == null，含带失效 token 的访问者）走公开预览口径：
+          已发布且 permission >= 1 即可在线看模型，不给下载计数。
+          之前游客走下载权限检查，直接被拒，详情页 3D 画布整个加载不出来。
+        */
+        if (userId == null) {
+            // 游客预览留审计日志（IP + 模型），出现遍历拖库时可追溯
+            log.info("Guest preview: modelId={}, ip={}", modelId, clientIp);
+            String url = getPublicViewFileUrl(modelId);
+            return DownloadUrlResponse.builder()
+                .downloadUrl(url)
+                .fileName(getFileNameFromPath(model.getModelFilePath()))
+                .expireTime(DOWNLOAD_URL_EXPIRE)
+                .modelName(model.getModelName())
+                .dynasty(model.getDynasty())
+                .build();
+        }
+
         boolean isAdmin = false;
         if (userId != null) {
             User user = userRepository.findById(userId).orElse(null);
@@ -95,12 +113,17 @@ public class DownloadServiceImpl implements DownloadService {
             throw new IllegalStateException("模型未发布或不可预览");
         }
 
+        /*
+          游客在线预览的权限口径：
+          · permission == 0：上传者明确禁止访问文件，游客和普通用户都不能看；
+          · permission >= 1：已发布即可在线预览——项目定位是"可公开参观的展馆"，
+            3D 查看属于"看内容"，不算写操作；下载仍走独立的登录+权限检查。
+          之前 permission == 1 时对游客抛"需要登录后查看模型"，
+          导致游客直接访问详情页时整个 3D 画布加载不出来，只剩一条报错。
+        */
         int permission = model.getDownloadPermission();
         if (permission == 0) {
             throw new IllegalStateException("该模型不允许访问文件");
-        }
-        if (permission == 1) {
-            throw new IllegalStateException("需要登录后查看模型");
         }
 
         return minioService.getModelFileUrl(model.getModelFilePath());

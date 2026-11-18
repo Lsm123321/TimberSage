@@ -61,6 +61,43 @@ public class FeedbackServiceImpl implements FeedbackService {
         return page.map(this::convertToModelFeedbackResponse);
     }
 
+    /** 已采纳(1) 的纠错才对外公开；待审核和已驳回都留在后台 */
+    private static final int STATUS_ADOPTED = 1;
+
+    @Override
+    public Page<ModelFeedbackResponse> getPublishedModelFeedbacks(Integer modelId, Pageable pageable) {
+        Page<ModelFeedback> page = modelFeedbackRepository
+            .findByModelIdAndStatus(modelId, STATUS_ADOPTED, pageable);
+        // 公开列表不暴露提交者账号，用户名做打码处理
+        return page.map(item -> {
+            ModelFeedbackResponse response = convertToModelFeedbackResponse(item);
+            response.setUsername(maskUsername(response.getUsername()));
+            return response;
+        });
+    }
+
+    @Override
+    public Page<ModelFeedbackResponse> getMyModelFeedbacks(Integer modelId, Integer userId, Pageable pageable) {
+        // 本人永远能看到自己提交的反馈（含待审核），别人看不到
+        return modelFeedbackRepository
+            .findByUserIdAndModelId(userId, modelId, pageable)
+            .map(this::convertToModelFeedbackResponse);
+    }
+
+    /**
+     * 用户名打码：保留首字符，其余用 * 代替。
+     * 公开纠错记录时没必要把提交者的账号原样挂出去。
+     */
+    private String maskUsername(String username) {
+        if (username == null || username.isBlank()) {
+            return "匿名用户";
+        }
+        if (username.length() == 1) {
+            return username + "*";
+        }
+        return username.charAt(0) + "**";
+    }
+
     @Override
     @Transactional
     public ModelFeedbackResponse updateModelFeedback(Integer id, ModelFeedbackUpdateRequest request, Integer adminId) {

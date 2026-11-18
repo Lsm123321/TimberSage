@@ -77,6 +77,17 @@ public class DeepSeekClient {
      */
     public void streamChat(String prompt, String modelId, String modelName, String dynasty, String location,
                           DeepSeekCallback callback) {
+        streamChat(prompt, modelId, modelName, dynasty, location, null, callback);
+    }
+
+    /**
+     * 带额外系统提示的流式问答。
+     *
+     * @param extraSystemPrompt 追加在系统提示末尾的上下文（例如「本平台功能/权限/实时数据」），
+     *                          为 null 时行为与旧版一致
+     */
+    public void streamChat(String prompt, String modelId, String modelName, String dynasty, String location,
+                          String extraSystemPrompt, DeepSeekCallback callback) {
         Instant start = Instant.now();
         AtomicBoolean delivered = new AtomicBoolean(false);
         try {
@@ -84,10 +95,11 @@ public class DeepSeekClient {
             // SSE 连接 5 分钟就超时）。智谱 glm-4-flash 实测稳定，所以平时主用智谱，
             // 智谱失败再回退 DeepSeek——两个通道都走同样的 OpenAI 兼容协议。
             String zKey = Objects.toString(zhipuApiKey, "").trim();
+            String systemPrompt = buildSystemPrompt(modelName, dynasty, location, extraSystemPrompt);
             Exception primaryError = null;
             if (!zKey.isEmpty()) {
                 primaryError = tryStreamChat(zhipuChatUrl, zKey, zhipuChatModel,
-                        buildSystemPrompt(modelName, dynasty, location), prompt, callback, delivered);
+                        systemPrompt, prompt, callback, delivered);
                 if (primaryError == null) {
                     return; // 智谱完整走完
                 }
@@ -95,7 +107,7 @@ public class DeepSeekClient {
             }
 
             Exception backupError = tryStreamChat(apiUrl, Objects.toString(apiKey, "").trim(), "deepseek-chat",
-                    buildSystemPrompt(modelName, dynasty, location), prompt, callback, delivered);
+                    systemPrompt, prompt, callback, delivered);
             if (backupError != null) {
                 callback.onError(primaryError != null ? primaryError : backupError);
             }
@@ -383,6 +395,10 @@ public class DeepSeekClient {
     }
 
     private String buildSystemPrompt(String modelName, String dynasty, String location) {
+        return buildSystemPrompt(modelName, dynasty, location, null);
+    }
+
+    private String buildSystemPrompt(String modelName, String dynasty, String location, String extraSystemPrompt) {
         StringBuilder systemPrompt = new StringBuilder();
         systemPrompt.append("你是一个专业的古建筑知识专家，精通中国古代建筑的历史、结构、风格等方面的知识。");
         systemPrompt.append("请基于以下上下文信息回答用户的问题，提供准确、详细、专业的解答。");
@@ -400,6 +416,11 @@ public class DeepSeekClient {
 
         systemPrompt.append("\n\n请以专业、客观的态度回答问题，避免猜测和错误信息。");
         systemPrompt.append("如果不确定答案，应该如实告知。");
+
+        // 平台功能/权限/实时数据：由 PlatformKnowledgeService 拼好传进来
+        if (extraSystemPrompt != null && !extraSystemPrompt.isBlank()) {
+            systemPrompt.append(extraSystemPrompt);
+        }
 
         return systemPrompt.toString();
     }

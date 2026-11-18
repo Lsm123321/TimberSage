@@ -16,4 +16,6 @@ public class PresetQuestionUpdateRequest {
     private String answerText;
     private Integer sortOrder;
     private Boolean enabled;
+    /** 展示场景：all / chat / model */
+    private String scene;
 }

@@ -25,5 +25,8 @@ public class RegisterRequest {
     @Email(message = "邮箱格式不正确")
     private String email;
 
+    // 头像只允许 http(s) 绝对地址或以单个 / 开头的站内路径；
+    // 直接拒绝 javascript:/data: 等可执行协议，避免资料页存储型 XSS。
+    @Pattern(regexp = "^$|^(https?://|/(?!/)).*", message = "头像地址不合法")
     private String avatar;
 }

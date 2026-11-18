@@ -29,7 +29,27 @@ public class MapServiceImpl implements MapService {
     private static final Map<String, double[]> REGION_CENTER = new LinkedHashMap<>();
     private static final Map<String, String> REGION_NAME = new LinkedHashMap<>();
     private static final String UNKNOWN_REGION = "__unknown__";
+    /** 省份正在后台推断的占位值 */
+    private static final String PENDING_REGION = "__pending__";
     private final Map<Integer, String> modelRegionCache = new ConcurrentHashMap<>();
+
+    /**
+     * 省份 AI 推断专用线程池。
+     * 单线程 + 有界队列：AI 接口本身并发能力有限，排队跑比打满更稳；
+     * 队列满了就丢任务（丢弃后模型保持未标注），不会堆积拖垮服务。
+     */
+    private final java.util.concurrent.ExecutorService regionInferenceExecutor =
+        new java.util.concurrent.ThreadPoolExecutor(
+            1, 1,
+            0L, TimeUnit.MILLISECONDS,
+            new java.util.concurrent.LinkedBlockingQueue<>(200),
+            r -> {
+                Thread t = new Thread(r, "region-inference");
+                t.setDaemon(true);
+                return t;
+            },
+            new java.util.concurrent.ThreadPoolExecutor.DiscardPolicy()
+        );
 
     static {
         REGION_CENTER.put("beijing", new double[]{116.40, 39.90});
@@ -99,6 +119,189 @@ public class MapServiceImpl implements MapService {
         REGION_NAME.put(UNKNOWN_REGION, "未标注地区");
     }
 
+    /**
+     * 城市 / 地标 → 省份代码。
+     *
+     * 数据里的 location 常写成「苏州」「扬州瘦西湖」「江南园林」这种，
+     * 光靠省名匹配不上，就会掉进 AI 兜底分支干等 8 秒。
+     * 这张表让绝大部分模型在本地一次命中，首页不再卡。
+     *
+     * 用 LinkedHashMap 保证顺序：更具体的地标放前面，避免被泛化的词抢先匹配。
+     */
+    private static final Map<String, String> CITY_REGION_HINTS = new LinkedHashMap<>();
+
+    static {
+        // 直辖市与华北
+        CITY_REGION_HINTS.put("故宫", "beijing");
+        CITY_REGION_HINTS.put("颐和园", "beijing");
+        CITY_REGION_HINTS.put("北海公园", "beijing");
+        CITY_REGION_HINTS.put("天坛", "beijing");
+        CITY_REGION_HINTS.put("卢沟桥", "beijing");
+        CITY_REGION_HINTS.put("丰台", "beijing");
+        CITY_REGION_HINTS.put("海淀", "beijing");
+        CITY_REGION_HINTS.put("承德", "hebei");
+        CITY_REGION_HINTS.put("避暑山庄", "hebei");
+        CITY_REGION_HINTS.put("正定", "hebei");
+        CITY_REGION_HINTS.put("赵州", "hebei");
+        CITY_REGION_HINTS.put("山海关", "hebei");
+        CITY_REGION_HINTS.put("五台山", "shanxi");
+        CITY_REGION_HINTS.put("平遥", "shanxi");
+        CITY_REGION_HINTS.put("大同", "shanxi");
+        CITY_REGION_HINTS.put("应县", "shanxi");
+        CITY_REGION_HINTS.put("太原", "shanxi");
+        CITY_REGION_HINTS.put("晋祠", "shanxi");
+        CITY_REGION_HINTS.put("西安", "shanxi2");
+        CITY_REGION_HINTS.put("长安", "shanxi2");
+        CITY_REGION_HINTS.put("咸阳", "shanxi2");
+        CITY_REGION_HINTS.put("华山", "shanxi2");
+
+        // 华东
+        CITY_REGION_HINTS.put("苏州", "jiangsu");
+        CITY_REGION_HINTS.put("扬州", "jiangsu");
+        CITY_REGION_HINTS.put("瘦西湖", "jiangsu");
+        CITY_REGION_HINTS.put("南京", "jiangsu");
+        CITY_REGION_HINTS.put("无锡", "jiangsu");
+        CITY_REGION_HINTS.put("周庄", "jiangsu");
+        CITY_REGION_HINTS.put("同里", "jiangsu");
+        CITY_REGION_HINTS.put("杭州", "zhejiang");
+        CITY_REGION_HINTS.put("西湖", "zhejiang");
+        CITY_REGION_HINTS.put("绍兴", "zhejiang");
+        CITY_REGION_HINTS.put("乌镇", "zhejiang");
+        CITY_REGION_HINTS.put("西塘", "zhejiang");
+        CITY_REGION_HINTS.put("丽水", "zhejiang");
+        CITY_REGION_HINTS.put("宁波", "zhejiang");
+        CITY_REGION_HINTS.put("温州", "zhejiang");
+        CITY_REGION_HINTS.put("黄山", "anhui");
+        // 「皖」是安徽简称、「浙」是浙江简称，古驿道这类文本常这么写
+        CITY_REGION_HINTS.put("皖南", "anhui");
+        CITY_REGION_HINTS.put("皖", "anhui");
+        CITY_REGION_HINTS.put("浙西", "zhejiang");
+        CITY_REGION_HINTS.put("浙东", "zhejiang");
+        CITY_REGION_HINTS.put("浙", "zhejiang");
+        CITY_REGION_HINTS.put("歙县", "anhui");
+        CITY_REGION_HINTS.put("宏村", "anhui");
+        CITY_REGION_HINTS.put("西递", "anhui");
+        CITY_REGION_HINTS.put("福州", "fujian");
+        CITY_REGION_HINTS.put("泉州", "fujian");
+        CITY_REGION_HINTS.put("土楼", "fujian");
+        CITY_REGION_HINTS.put("厦门", "fujian");
+        CITY_REGION_HINTS.put("景德镇", "jiangxi");
+        CITY_REGION_HINTS.put("婺源", "jiangxi");
+        CITY_REGION_HINTS.put("庐山", "jiangxi");
+        CITY_REGION_HINTS.put("济南", "shandong");
+        CITY_REGION_HINTS.put("大明湖", "shandong");
+        CITY_REGION_HINTS.put("曲阜", "shandong");
+        CITY_REGION_HINTS.put("泰山", "shandong");
+        CITY_REGION_HINTS.put("青岛", "shandong");
+        // 「江南」是区域概念，古园林/古桥语境下多指苏浙一带，归到江苏最贴近
+        CITY_REGION_HINTS.put("江南", "jiangsu");
+        CITY_REGION_HINTS.put("苏杭", "jiangsu");
+
+        // 华中与华南
+        CITY_REGION_HINTS.put("洛阳", "henan");
+        CITY_REGION_HINTS.put("开封", "henan");
+        CITY_REGION_HINTS.put("少林", "henan");
+        CITY_REGION_HINTS.put("龙门", "henan");
+        CITY_REGION_HINTS.put("武汉", "hubei");
+        CITY_REGION_HINTS.put("黄鹤楼", "hubei");
+        CITY_REGION_HINTS.put("荆州", "hubei");
+        CITY_REGION_HINTS.put("长沙", "hunan");
+        CITY_REGION_HINTS.put("凤凰", "hunan");
+        CITY_REGION_HINTS.put("张家界", "hunan");
+        CITY_REGION_HINTS.put("岳阳", "hunan");
+        CITY_REGION_HINTS.put("广州", "guangdong");
+        CITY_REGION_HINTS.put("潮州", "guangdong");
+        CITY_REGION_HINTS.put("开平", "guangdong");
+        CITY_REGION_HINTS.put("碉楼", "guangdong");
+        CITY_REGION_HINTS.put("桂林", "guangxi");
+        CITY_REGION_HINTS.put("阳朔", "guangxi");
+        CITY_REGION_HINTS.put("三江", "guangxi");
+        CITY_REGION_HINTS.put("侗族", "guangxi");
+
+        // 西南与西北
+        CITY_REGION_HINTS.put("成都", "sichuan");
+        CITY_REGION_HINTS.put("都江堰", "sichuan");
+        CITY_REGION_HINTS.put("乐山", "sichuan");
+        CITY_REGION_HINTS.put("峨眉", "sichuan");
+        CITY_REGION_HINTS.put("丽江", "yunnan");
+        CITY_REGION_HINTS.put("大理", "yunnan");
+        CITY_REGION_HINTS.put("西双版纳", "yunnan");
+        CITY_REGION_HINTS.put("腾冲", "yunnan");
+        CITY_REGION_HINTS.put("拉萨", "xizang");
+        CITY_REGION_HINTS.put("布达拉宫", "xizang");
+        CITY_REGION_HINTS.put("日喀则", "xizang");
+        CITY_REGION_HINTS.put("贵阳", "guizhou");
+        CITY_REGION_HINTS.put("黔东南", "guizhou");
+        CITY_REGION_HINTS.put("兰州", "gansu");
+        CITY_REGION_HINTS.put("敦煌", "gansu");
+        CITY_REGION_HINTS.put("嘉峪关", "gansu");
+        CITY_REGION_HINTS.put("银川", "ningxia");
+        CITY_REGION_HINTS.put("乌鲁木齐", "xinjiang");
+        CITY_REGION_HINTS.put("喀什", "xinjiang");
+        CITY_REGION_HINTS.put("吐鲁番", "xinjiang");
+        CITY_REGION_HINTS.put("西宁", "qinghai");
+        CITY_REGION_HINTS.put("青海湖", "qinghai");
+
+        // 东北
+        CITY_REGION_HINTS.put("哈尔滨", "heilongjiang");
+        CITY_REGION_HINTS.put("沈阳", "liaoning");
+        CITY_REGION_HINTS.put("大连", "liaoning");
+        CITY_REGION_HINTS.put("长春", "jilin");
+        CITY_REGION_HINTS.put("吉林市", "jilin");
+        CITY_REGION_HINTS.put("呼和浩特", "neimenggu");
+    }
+
+    /**
+     * 启动预热：把已发布模型的省份归属先算进缓存。
+     *
+     * 好处有两个：
+     * 1. 首次打开地图不用现算，省掉逐个推断的开销；
+     * 2. 本地规则搞不定的，在用户访问前就把 AI 推断排上队，等用户点进来时多半已算完。
+     *
+     * 用 ApplicationReadyEvent 而不是 @PostConstruct：后者执行时数据库连接池
+     * 可能还没完全就绪，容易在启动日志里刷一堆异常。
+     * 整个预热跑在后台线程，不阻塞应用启动。
+     */
+    @org.springframework.context.event.EventListener(
+        org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    public void warmUpRegionCache() {
+        regionInferenceExecutor.execute(() -> {
+            try {
+                List<BuildingModel> models = modelRepository.findAll().stream()
+                    .filter(m -> m.getStatus() != null && m.getStatus() == 1)
+                    .filter(m -> m.getModelName() != null && !m.getModelName().isBlank())
+                    .collect(Collectors.toList());
+
+                int localHit = 0;
+                int needAi = 0;
+                for (BuildingModel m : models) {
+                    String byLocation = inferRegionCode(m.getLocation());
+                    if (!UNKNOWN_REGION.equals(byLocation)) {
+                        modelRegionCache.put(m.getId(), byLocation);
+                        localHit++;
+                    } else {
+                        // 本地无解的先标占位，让后续请求知道「已在排队」而不是重复提交
+                        modelRegionCache.put(m.getId(), PENDING_REGION);
+                        needAi++;
+                    }
+                }
+                log.info("地图省份缓存预热完成：本地命中 {} 个，待 AI 推断 {} 个（后台排队）", localHit, needAi);
+
+                // 需要 AI 的那些，紧接着在当前线程里一个个跑（线程池本身就一个线程，天然串行）
+                for (BuildingModel m : models) {
+                    if (PENDING_REGION.equals(modelRegionCache.get(m.getId()))) {
+                        String resolved = inferRegionCodeByAi(
+                            m.getModelName(), m.getLocation(), m.getDescription());
+                        modelRegionCache.put(m.getId(), resolved);
+                    }
+                }
+                log.info("地图省份 AI 推断全部完成");
+            } catch (Exception e) {
+                log.warn("地图省份缓存预热失败（不影响正常使用，首次请求时会重新推断）", e);
+            }
+        });
+    }
+
     @Override
     public Map<String, Object> getMapOverview(String keyword) {
         return getMapOverview(keyword, "all");
@@ -126,7 +329,12 @@ public class MapServiceImpl implements MapService {
         Map<String, Integer> regionIndexCounter = new LinkedHashMap<>();
         for (BuildingModel model : publishedModels) {
             String regionCode = resolveRegionCode(model);
-            if (regionCode == null) {
+            /*
+              省份还在后台推断（PENDING）时先不给点位：
+              否则会有一批点位堆在「未标注地区」把地图中心糊成一团。
+              等后台推断完写进缓存，下次刷新就出现在正确的省份了。
+            */
+            if (regionCode == null || PENDING_REGION.equals(regionCode)) {
                 continue;
             }
             double[] center = REGION_CENTER.getOrDefault(regionCode, new double[]{105.0, 35.0});
@@ -174,8 +382,21 @@ public class MapServiceImpl implements MapService {
     @Override
     public Map<String, Object> generateModelInsight(Integer modelId, String modelName, String dynasty, String location, String description) {
         String fallbackName = modelName == null || modelName.isBlank() ? "古建筑模型" : modelName;
-        // 地图卡片上的 AI 导览文案：按建筑元信息生成三段短文案
-        String answer = askAiInsight(fallbackName, dynasty, location, description);
+        /*
+          AI 生成失败、超时、甚至上游 SDK 抛运行时异常时，
+          这里都必须给出一段可用的兜底文案，而不是把 500 抛给前端。
+          地图卡片上的"讲解"属于增强信息，不该因为模型服务抖动就整页报错。
+        */
+        String answer;
+        try {
+            answer = askAiInsight(fallbackName, dynasty, location, description);
+        } catch (Exception e) {
+            log.warn("AI insight failed, use fallback: {}", e.getMessage());
+            answer = buildFallbackInsight(fallbackName, dynasty, location);
+        }
+        if (answer == null || answer.isBlank()) {
+            answer = buildFallbackInsight(fallbackName, dynasty, location);
+        }
         String query = String.join(" ", fallbackName, dynasty == null ? "" : dynasty, location == null ? "" : location).trim();
         String encoded = URLEncoder.encode(query, StandardCharsets.UTF_8);
         List<Map<String, String>> links = List.of(
@@ -304,6 +525,15 @@ public class MapServiceImpl implements MapService {
         return raw == null ? "" : raw.replaceAll("[\\s\\u00A0]+", " ").trim();
     }
 
+    /**
+     * 解析模型所属省份。
+     *
+     * 本地规则命中就直接返回，一次查表搞定。
+     * 本地猜不出来时【不再同步等 AI】——原来这里会阻塞最多 8 秒，
+     * 几十个模型串起来就能把地图首页拖到 18 秒。
+     * 现在改成：先按「未标注」返回（前端能立刻出图），
+     * 同时把 AI 推断丢到后台线程，算完写进缓存，下次请求就准了。
+     */
     private String resolveRegionCode(BuildingModel model) {
         if (model == null || model.getId() == null) {
             return UNKNOWN_REGION;
@@ -317,47 +547,100 @@ public class MapServiceImpl implements MapService {
             modelRegionCache.put(model.getId(), byLocation);
             return byLocation;
         }
-        // 地点字段猜不出来时才让 AI 兜底推断，省着点调用量
-        String aiResolved = inferRegionCodeByAi(model.getModelName(), model.getLocation(), model.getDescription());
-        modelRegionCache.put(model.getId(), aiResolved);
-        return aiResolved;
+
+        // 本地规则无解：标记为「推断中」，避免同一模型被重复提交到后台
+        if (modelRegionCache.putIfAbsent(model.getId(), PENDING_REGION) == null) {
+            scheduleAiRegionInference(model);
+        }
+        return UNKNOWN_REGION;
     }
 
+    /**
+     * 把 AI 推断放到后台单线程池里跑。
+     * 用单线程是刻意的：AI 接口本身有并发限制，排队跑比并发打满更稳，
+     * 而且这些推断只影响地图点位归属，晚几秒没有用户感知。
+     */
+    private void scheduleAiRegionInference(BuildingModel model) {
+        final Integer modelId = model.getId();
+        final String modelName = model.getModelName();
+        final String location = model.getLocation();
+        final String description = model.getDescription();
+        try {
+            regionInferenceExecutor.execute(() -> {
+                try {
+                    String resolved = inferRegionCodeByAi(modelName, location, description);
+                    modelRegionCache.put(modelId, resolved);
+                    log.debug("后台推断省份完成: modelId={} region={}", modelId, resolved);
+                } catch (Exception e) {
+                    // 推断失败就落回未标注，别把占位值留着一直卡住
+                    modelRegionCache.put(modelId, UNKNOWN_REGION);
+                    log.warn("后台推断省份失败: modelId={}", modelId, e);
+                }
+            });
+        } catch (Exception e) {
+            // 线程池已满等情况：直接落未标注，不影响本次请求
+            modelRegionCache.put(modelId, UNKNOWN_REGION);
+            log.warn("提交后台省份推断失败: modelId={}", modelId, e);
+        }
+    }
+
+    /**
+     * 按地点文本推断省份代码。
+     *
+     * 只认省名的话，像「江南园林」「苏州」「扬州瘦西湖」这类数据全都猜不出来，
+     * 只能落到 AI 兜底——每个模型最多等 8 秒，几十个模型串起来就是十几秒的首页卡顿。
+     * 所以这里补上主要城市和地标关键词，让绝大多数模型在本地一次命中。
+     *
+     * 匹配顺序：省名 → 城市名。因为「江苏苏州」这类文本里省名已经够用，
+     * 而城市名可能和别省重名（如「山西」与「陕西」），先按省匹配更稳。
+     */
     private String inferRegionCode(String location) {
         if (location == null || location.isBlank()) {
             return UNKNOWN_REGION;
         }
-        if (location.contains("北京")) return "beijing";
-        if (location.contains("天津")) return "tianjin";
-        if (location.contains("河北")) return "hebei";
-        if (location.contains("山西")) return "shanxi";
-        if (location.contains("内蒙古")) return "neimenggu";
-        if (location.contains("辽宁")) return "liaoning";
-        if (location.contains("吉林")) return "jilin";
-        if (location.contains("黑龙江")) return "heilongjiang";
-        if (location.contains("上海")) return "shanghai";
-        if (location.contains("江苏")) return "jiangsu";
-        if (location.contains("浙江")) return "zhejiang";
-        if (location.contains("安徽")) return "anhui";
-        if (location.contains("福建")) return "fujian";
-        if (location.contains("江西")) return "jiangxi";
-        if (location.contains("山东")) return "shandong";
-        if (location.contains("河南")) return "henan";
-        if (location.contains("湖北")) return "hubei";
-        if (location.contains("湖南")) return "hunan";
-        if (location.contains("广东")) return "guangdong";
-        if (location.contains("广西")) return "guangxi";
-        if (location.contains("海南")) return "hainan";
-        if (location.contains("重庆")) return "chongqing";
-        if (location.contains("四川")) return "sichuan";
-        if (location.contains("贵州")) return "guizhou";
-        if (location.contains("云南")) return "yunnan";
-        if (location.contains("西藏")) return "xizang";
-        if (location.contains("陕西") || location.contains("西安")) return "shanxi2";
-        if (location.contains("甘肃")) return "gansu";
-        if (location.contains("青海")) return "qinghai";
-        if (location.contains("宁夏")) return "ningxia";
-        if (location.contains("新疆")) return "xinjiang";
+        String text = location.replaceAll("[\\s\\u00A0]+", "");
+
+        // ===== 第一轮：直接匹配省级名称 =====
+        if (text.contains("北京")) return "beijing";
+        if (text.contains("天津")) return "tianjin";
+        if (text.contains("河北")) return "hebei";
+        if (text.contains("内蒙古")) return "neimenggu";
+        if (text.contains("辽宁")) return "liaoning";
+        if (text.contains("吉林")) return "jilin";
+        if (text.contains("黑龙江")) return "heilongjiang";
+        if (text.contains("上海")) return "shanghai";
+        if (text.contains("江苏")) return "jiangsu";
+        if (text.contains("浙江")) return "zhejiang";
+        if (text.contains("安徽")) return "anhui";
+        if (text.contains("福建")) return "fujian";
+        if (text.contains("江西")) return "jiangxi";
+        if (text.contains("山东")) return "shandong";
+        if (text.contains("河南")) return "henan";
+        if (text.contains("湖北")) return "hubei";
+        if (text.contains("湖南")) return "hunan";
+        if (text.contains("广东")) return "guangdong";
+        if (text.contains("广西")) return "guangxi";
+        if (text.contains("海南")) return "hainan";
+        if (text.contains("重庆")) return "chongqing";
+        if (text.contains("四川")) return "sichuan";
+        if (text.contains("贵州")) return "guizhou";
+        if (text.contains("云南")) return "yunnan";
+        if (text.contains("西藏")) return "xizang";
+        if (text.contains("甘肃")) return "gansu";
+        if (text.contains("青海")) return "qinghai";
+        if (text.contains("宁夏")) return "ningxia";
+        if (text.contains("新疆")) return "xinjiang";
+        // 山西 / 陕西必须在通用城市匹配之前判断，避免「西安」被 shanxi 抢走
+        if (text.contains("陕西")) return "shanxi2";
+        if (text.contains("山西")) return "shanxi";
+
+        // ===== 第二轮：城市与地标关键词 =====
+        for (Map.Entry<String, String> entry : CITY_REGION_HINTS.entrySet()) {
+            if (text.contains(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+
         return UNKNOWN_REGION;
     }
 

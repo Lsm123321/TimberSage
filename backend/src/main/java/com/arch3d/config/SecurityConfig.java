@@ -5,6 +5,7 @@ import com.arch3d.security.JwtAuthenticationFilter;
 import com.arch3d.util.JwtTokenUtil;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -60,9 +61,43 @@ public class SecurityConfig {
                     "/swagger-ui/**",
                     "/swagger-ui.html"
                 ).permitAll()
+                /*
+                  只读浏览接口：未登录也能看内容（项目定位是"可公开参观的展馆"）。
+                  这里放行的都是无副作用或只记浏览数的 GET：
+                  - 模型列表/详情、分类、热门搜索、地图点位与区域模型
+                  - 预设问题、AI 问答流（游客也能提问）
+                  - 评论列表、模型已采纳的纠错列表
+                  写操作（点赞/收藏/评论/上传/下载/改资料）仍在各自 Controller 上要求登录。
+                */
+                .requestMatchers(HttpMethod.GET,
+                    "/api/models",
+                    "/api/models/*",
+                    "/api/models/hot",
+                    "/api/models/*/file-url",
+                    "/api/models/*/feedback",
+                    "/api/categories",
+                    "/api/hot-search",
+                    "/api/map/**",
+                    "/api/preset-questions",
+                    "/api/chat/stream",
+                    "/api/comments",
+                    "/api/comments/*/replies",
+                    "/api/site-feedback"
+                ).permitAll()
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
+            // 安全响应头：防点击劫持、防 MIME 嗅探、限制 referrer、关闭不必要的浏览器特性
+            .headers(headers -> headers
+                .frameOptions(frame -> frame.deny())
+                .contentTypeOptions(opts -> {})
+                .referrerPolicy(ref -> ref.policy(
+                    org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                .addHeaderWriter(new org.springframework.security.web.header.writers.StaticHeadersWriter(
+                    "Permissions-Policy", "geolocation=(), microphone=(self), camera=()"))
+                .addHeaderWriter(new org.springframework.security.web.header.writers.StaticHeadersWriter(
+                    "X-Content-Type-Options", "nosniff"))
+            )
             .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

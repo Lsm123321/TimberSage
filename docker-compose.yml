@@ -71,6 +71,8 @@ services:
       - SPRING_DEEPSEEK_API_KEY=${SPRING_DEEPSEEK_API_KEY:-}
       # 智谱 AI Key（TTS 语音合成 + DeepSeek 拥堵时的 chat 备胎）
       - ZHIPU_API_KEY=${ZHIPU_API_KEY:-}
+      # JWT 签名密钥：必须注入，否则后端启动直接失败（防止用示例密钥上线）
+      - JWT_SECRET=${JWT_SECRET:?请在 .env 中设置 JWT_SECRET（至少 32 字节随机串）}
       # 与浏览器访问前端的 Origin 一致；公网部署请加 http://你的IP或域名:*
       - APP_CORS_ALLOWED_ORIGIN_PATTERNS=${CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}
 

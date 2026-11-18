@@ -17,9 +17,11 @@ import java.time.Duration;
  *   - login / captcha：30 次/分钟
  * 超限直接 429，不再消耗业务逻辑和数据库。
  *
- * 说明：Caddy 标准镜像没有 rate_limit 模块，所以放到应用层做；
- * 取 IP 时优先取 X-Forwarded-For 第一跳（前端 nginx 会追加真实 IP），
- * 但只信任第一段，避免伪造头绕过。
+ * 说明：Caddy 标准镜像没有 rate_limit 模块，所以放到应用层做。
+ * 取 IP 只认前端 nginx 覆盖写入的 X-Real-IP：后端只监听 127.0.0.1，
+ * 外部请求到不了这一层；而 X-Forwarded-For 的第一段是客户端可以随便伪造的，
+ * 拿它当限流 key 等于没限流。nginx.conf 里已配 set_real_ip_from + real_ip_header，
+ * 会把 Caddy 传来的真实客户端 IP 还原到 $remote_addr。
  */
 @Component
 public class AuthRateLimitInterceptor implements HandlerInterceptor {
@@ -66,10 +68,11 @@ public class AuthRateLimitInterceptor implements HandlerInterceptor {
     }
 
     private String clientIp(HttpServletRequest request) {
-        String xff = request.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            int comma = xff.indexOf(',');
-            return (comma > 0 ? xff.substring(0, comma) : xff).trim();
+        // nginx 用 proxy_set_header X-Real-IP $remote_addr 覆盖写入，
+        // 客户端自带的 X-Real-IP 会被覆盖掉；这里只信任这一层代理的结果。
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
         }
         return request.getRemoteAddr();
     }

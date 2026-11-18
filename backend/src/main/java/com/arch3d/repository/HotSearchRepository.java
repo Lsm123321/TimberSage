@@ -21,6 +21,11 @@ public interface HotSearchRepository extends JpaRepository<HotSearch, Integer> {
     @Query("SELECT max(h.statDate) FROM HotSearch h")
     LocalDate findMaxStatDate();
 
+    // 聚合前清空当天的旧行，避免同一关键词被重复插入
+    @Modifying
+    @Query("DELETE FROM HotSearch h WHERE h.statDate = :statDate")
+    void deleteByStatDate(@Param("statDate") LocalDate statDate);
+
     @Modifying
     @Query("UPDATE HotSearch h SET h.searchCount = h.searchCount + 1 WHERE h.id = :id")
     void incrementSearchCount(@Param("id") Integer id);

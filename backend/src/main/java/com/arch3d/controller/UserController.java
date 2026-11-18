@@ -6,6 +6,7 @@ import com.arch3d.entity.User;
 import com.arch3d.service.AvatarService;
 import com.arch3d.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,7 +44,7 @@ public class UserController {
     @Operation(summary = "更新当前用户信息", description = "更新已登录用户信息")
     public ResponseEntity<ApiResponse<UserDTO>> updateCurrentUser(
             Authentication authentication,
-            @RequestBody UserDTO userDTO) {
+            @Valid @RequestBody UserDTO userDTO) {
         String username = authentication.getName();
         UserDTO updated = userService.updateUserInfo(username, userDTO);
         return ResponseEntity.ok(ApiResponse.success("更新成功", updated));

@@ -55,6 +55,7 @@ public class PresetQuestionServiceImpl implements PresetQuestionService {
             .sortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0)
             .clickCount(0)
             .enabled(request.getEnabled() != null ? (request.getEnabled() ? 1 : 0) : 1)
+            .scene(normalizeScene(request.getScene()))
             .build();
 
         return questionRepository.save(question);
@@ -93,6 +94,9 @@ public class PresetQuestionServiceImpl implements PresetQuestionService {
         if (request.getEnabled() != null) {
             question.setEnabled(request.getEnabled() ? 1 : 0);
         }
+        if (request.getScene() != null) {
+            question.setScene(normalizeScene(request.getScene()));
+        }
         validateScope(question.getModel(), question.getCategory());
 
         return questionRepository.save(question);
@@ -108,6 +112,11 @@ public class PresetQuestionServiceImpl implements PresetQuestionService {
 
     @Override
     public List<PresetQuestionResponse> getQuestions(Integer modelId, Integer categoryId) {
+        return getQuestions(modelId, categoryId, null);
+    }
+
+    @Override
+    public List<PresetQuestionResponse> getQuestions(Integer modelId, Integer categoryId, String scene) {
         List<PresetQuestion> questions = questionRepository.findByEnabledTrue();
         Integer targetCategoryId = categoryId;
         if (targetCategoryId == null && modelId != null) {
@@ -119,8 +128,24 @@ public class PresetQuestionServiceImpl implements PresetQuestionService {
 
         final Integer finalModelId = modelId;
         final Integer finalCategoryId = targetCategoryId;
+        /*
+          场景过滤：
+          - 传了 chat / model 时，只留 scene 相同或 scene=all 的条目；
+          - 不传（null）时不过滤，管理端与旧接口行为不变。
+          这样 AI 问答页可以单独维护一批问题，不必和模型详情页共用。
+        */
+        final String targetScene = (scene == null || scene.isBlank() || "all".equalsIgnoreCase(scene))
+                ? null
+                : scene.trim().toLowerCase();
+
         questions = questions.stream()
             .filter(q -> {
+                if (targetScene != null) {
+                    String qScene = q.getScene() == null ? "all" : q.getScene().toLowerCase();
+                    if (!"all".equals(qScene) && !targetScene.equals(qScene)) {
+                        return false;
+                    }
+                }
                 // 全局通用（模型、分类都为空）始终可见
                 if (q.getModel() == null && q.getCategory() == null) {
                     return true;
@@ -166,18 +191,28 @@ public class PresetQuestionServiceImpl implements PresetQuestionService {
             .sortOrder(question.getSortOrder())
             .clickCount(question.getClickCount())
             .enabled(question.getEnabled() == 1)
+            .scene(question.getScene() == null ? "all" : question.getScene())
             .createdAt(question.getCreatedAt())
             .updatedAt(question.getUpdatedAt())
             .build();
     }
 
     private void validateScope(BuildingModel model, BuildingCategory category) {
-        // 允许全局通用（model/category 都为空），由前端“作用范围”显式选择
+        // 允许全局通用（model/category 都为空），由前端"作用范围"显式选择
         if (model != null && category != null && model.getCategory() != null) {
             Integer modelCategoryId = model.getCategory().getId();
             if (!modelCategoryId.equals(category.getId())) {
                 throw new RuntimeException("所选模型与分类不匹配");
             }
         }
+    }
+
+    /** 场景值只允许 all/chat/model，其余一律回落 all，避免脏数据把列表筛空 */
+    private String normalizeScene(String scene) {
+        if (scene == null) {
+            return "all";
+        }
+        String s = scene.trim().toLowerCase();
+        return ("chat".equals(s) || "model".equals(s)) ? s : "all";
     }
 }

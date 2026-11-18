@@ -28,8 +28,14 @@ public class GlobalExceptionHandler {
             }
             current = current.getCause();
         }
+        /*
+          不要把原始异常消息直接返回给前端。
+          之前 ApiResponse.error(ex.getMessage()) 会把 SQL 片段、类名、
+          文件路径这类内部信息泄露出去，攻击者可据此摸清技术栈与表结构。
+          统一返回通用文案，细节只进服务端日志。
+        */
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(ApiResponse.error(ex.getMessage()));
+            .body(ApiResponse.error("系统繁忙，请稍后再试"));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

@@ -21,4 +21,7 @@ public class PresetQuestionCreateRequest {
     
     private Integer sortOrder;
     private Boolean enabled;
+
+    /** 展示场景：all / chat / model，缺省 all */
+    private String scene;
 }

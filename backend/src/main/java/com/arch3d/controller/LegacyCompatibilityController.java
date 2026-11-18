@@ -21,6 +21,7 @@ import com.arch3d.repository.UserModelFavoriteRepository;
 import com.arch3d.repository.UserModelLikeRepository;
 import com.arch3d.service.UserService;
 import com.arch3d.service.MinioService;
+import com.arch3d.util.SearchKeywordUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -67,24 +68,30 @@ public class LegacyCompatibilityController {
     private final MinioService minioService;
 
     @GetMapping("/hot-search")
-    @PreAuthorize("isAuthenticated()")
+    // 热门搜索属于公开展示数据，游客也能看；写操作才需要登录
+
     public ApiResponse<List<Map<String, Object>>> getHotSearch() {
         LocalDate latestStatDate = hotSearchRepository.findMaxStatDate();
         List<HotSearch> list = latestStatDate == null
                 ? Collections.emptyList()
                 : hotSearchRepository.findTop10ByStatDateOrderBySearchCountDesc(latestStatDate);
-        List<Map<String, Object>> data = list.stream().map(item -> {
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("keyword", item.getKeyword());
-            row.put("searchCount", item.getSearchCount());
-            row.put("statDate", item.getStatDate());
-            return row;
-        }).collect(Collectors.toList());
+        List<Map<String, Object>> data = list.stream()
+                // 库里可能还有历史脏数据，输出前再兜一层，首页不展示扫描器载荷
+                .filter(item -> SearchKeywordUtils.isValid(item.getKeyword()))
+                .limit(10)
+                .map(item -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("keyword", item.getKeyword());
+                    row.put("searchCount", item.getSearchCount());
+                    row.put("statDate", item.getStatDate());
+                    return row;
+                }).collect(Collectors.toList());
         return ApiResponse.success(data);
     }
 
     @GetMapping("/categories")
-    @PreAuthorize("isAuthenticated()")
+    // 分类是公开元数据，未登录也要能筛选
+    
     public ApiResponse<List<Map<String, Object>>> getCategories() {
         List<Map<String, Object>> data = buildingCategoryRepository.findAllByOrderBySortOrderAsc().stream().map(item -> {
             Map<String, Object> row = new LinkedHashMap<>();
