@@ -469,9 +469,12 @@ watch(selectedPartId, (id) => {
     startPartFloatLoop()
   })
 
-  // 只有爆炸展开了才去解析构件，平时点选没必要触发这一串请求
-  if (!exploded.value) return
-
+  /*
+    去掉原来「只有爆炸展开才解析构件」的门槛。
+    实际使用里爆炸状态的判定会受动画、模型重载、组件重建影响，
+    偶尔出现"点了没反应"，用户会以为功能坏了。
+    现在只要点中构件就一律弹卡片，卡片本身就是常显的信息面板，不依赖任何展开/收起状态。
+  */
   if (!token.value) return
 
   // 连点不同构件时只认最后一次的返回，之前的直接作废
@@ -732,8 +735,11 @@ const onPartCanvasClick = (payload) => {
     clearPartSelection()
     return
   }
-  // 只有爆炸展开时才允许点选构件，正常观赏模式误触了很烦
-  if (!exploded.value) return
+  /*
+    不再要求"必须先爆炸展开"才响应点击。
+    之前的门槛是为了防误触，但实战里经常出现点了没反应（爆炸状态被判丢），
+    现在点中构件就选中并弹出常显卡片，误触可以直接点 × 关掉。
+  */
   selectedPartId.value = payload.id
   selectedPartTechnicalName.value = (payload.name && String(payload.name).trim()) || ''
   selectedPartAiLabel.value = partAiLabelCache.has(payload.id)

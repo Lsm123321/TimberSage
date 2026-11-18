@@ -310,7 +310,8 @@ const handleRegister = async () => {
   }
 
   .register-box {
-    width: 400px;
+    // 窄屏留出 16px 边距，避免固定 400px 在手机上顶边
+    width: min(400px, calc(100vw - 32px));
     padding: 40px;
     background: rgba(255, 255, 255, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.72);

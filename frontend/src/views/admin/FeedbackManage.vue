@@ -76,8 +76,14 @@
           <el-descriptions-item label="反馈内容" :span="2">
             {{ currentFeedback.content || currentFeedback.description }}
           </el-descriptions-item>
-          <el-descriptions-item label="附件" v-if="currentFeedback.attachments" :span="2">
-            <a :href="attachment" target="_blank" v-for="(attachment, idx) in parseAttachments(currentFeedback.attachments)" :key="idx">
+          <el-descriptions-item label="附件" v-if="safeAttachments(currentFeedback.attachments).length" :span="2">
+            <a
+              v-for="(attachment, idx) in safeAttachments(currentFeedback.attachments)"
+              :key="idx"
+              :href="attachment"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               附件{{ idx + 1 }}
             </a>
           </el-descriptions-item>
@@ -228,6 +234,18 @@ const parseAttachments = (attachments) => {
   }
 }
 
+// 附件来自用户提交，绝不能直接塞进 href：
+// 之前 javascript:alert(...) 会被当成可点击链接，管理员一点就在后台执行。
+// 这里只放行 http(s) 绝对地址和站内绝对路径（单个 / 开头）。
+const isSafeAttachmentUrl = (url) => {
+  if (typeof url !== 'string') return false
+  const value = url.trim()
+  if (!value) return false
+  return /^(https?:\/\/|\/(?!\/))/i.test(value)
+}
+
+const safeAttachments = (attachments) => parseAttachments(attachments).filter(isSafeAttachmentUrl)
+
 const goToModel = (feedback) => {
   const id = Number(feedback?.modelId)
   if (!Number.isFinite(id) || id <= 0) {
@@ -263,12 +281,16 @@ const goToModel = (feedback) => {
     }
   }
 
-  /* 局部修复：管理端浅底表格里 tag/文字发白问题（被全局 .el-tag 覆盖） */
+  /*
+    表格配色跟随主题。
+    之前这里为了修深色下的发白问题把表格写死成白底深字，
+    结果深色主题反而变成大白块、按钮白字也看不清；现在统一用语义 token。
+  */
   :deep(.admin-feedback-table) {
-    --fm-table-bg: rgba(255, 255, 255, 0.92);
-    --fm-table-bg-alt: rgba(248, 250, 252, 0.92);
-    --fm-table-border: rgba(15, 23, 42, 0.10);
-    --fm-table-text: #1f2937;
+    --fm-table-bg: var(--v2-surface-soft);
+    --fm-table-bg-alt: var(--v2-surface-hover);
+    --fm-table-border: var(--v2-divider);
+    --fm-table-text: var(--v2-text-body);
 
     .el-table {
       background: transparent !important;
@@ -283,15 +305,15 @@ const goToModel = (feedback) => {
 
     .el-table__header-wrapper th.el-table__cell {
       background: var(--fm-table-bg) !important;
-      color: rgba(15, 23, 42, 0.82) !important;
+      color: var(--v2-text-strong) !important;
       font-weight: 800;
       border-bottom: 1px solid var(--fm-table-border) !important;
     }
 
     .el-table__body-wrapper td.el-table__cell {
-      background: var(--fm-table-bg) !important;
+      background: transparent !important;
       color: var(--fm-table-text) !important;
-      border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+      border-bottom: 1px solid var(--fm-table-border) !important;
     }
 
     .el-table__body tr.el-table__row--striped td.el-table__cell {
@@ -302,6 +324,22 @@ const goToModel = (feedback) => {
       color: var(--fm-table-text) !important;
     }
 
+    /*
+      表格里的操作按钮：白底主题下要给深字，深色主题下要给浅字。
+      el-button 的全局描边和字色是按深色背景写的，这里按当前表底纠正。
+    */
+    .el-button:not(.el-button--primary):not(.el-button--success):not(.el-button--warning):not(.el-button--danger) {
+      color: var(--v2-text-body) !important;
+      border-color: var(--v2-border-soft) !important;
+      background: var(--v2-surface-strong) !important;
+    }
+
+    .el-button:not(.el-button--primary):not(.el-button--success):not(.el-button--warning):not(.el-button--danger):hover {
+      color: var(--v2-text-strong) !important;
+      border-color: var(--v2-chip-border) !important;
+      background: var(--v2-surface-hover) !important;
+    }
+
     .status-tag.el-tag {
       border-radius: 999px;
       padding: 0 10px;
@@ -309,9 +347,9 @@ const goToModel = (feedback) => {
       line-height: 22px;
       font-weight: 800;
       letter-spacing: 0.2px;
-      border: 1px solid rgba(15, 23, 42, 0.16) !important;
-      background: rgba(15, 23, 42, 0.05) !important;
-      color: rgba(15, 23, 42, 0.88) !important;
+      border: 1px solid var(--v2-border-soft) !important;
+      background: var(--v2-surface-soft) !important;
+      color: var(--v2-text-body) !important;
     }
   }
 }

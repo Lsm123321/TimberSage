@@ -107,6 +107,11 @@ async function handleSubmit() {
 
 <style scoped lang="scss">
 .about-us {
+  /*
+    关于我们整页原来把颜色写死成「半透明白字 + 白描边」，
+    这是按深色底设计的；切到浅色主题后文字和面板一起消失。
+    改用语义 token 后，深色是墨底暖金字、浅色是奶白底深墨字。
+  */
   .page-head {
     padding: 16px 18px;
     border-radius: 14px;
@@ -114,39 +119,39 @@ async function handleSubmit() {
     .title {
       font-size: 18px;
       font-weight: 800;
-      color: rgba(255, 255, 255, 0.92);
+      color: var(--v2-text-strong);
     }
     .desc {
       margin-top: 6px;
       font-size: 13px;
-      color: rgba(255, 255, 255, 0.72);
+      color: var(--v2-text-weak);
     }
   }
 
   .v2-card {
-    border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.06);
+    border-radius: var(--v2-radius-lg);
+    border: 1px solid var(--v2-border-soft);
+    background: var(--v2-surface);
     :deep(.el-card__header) {
-      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      border-bottom: 1px solid var(--v2-divider);
     }
     :deep(.el-form-item__label) {
-      color: rgba(255, 255, 255, 0.76);
+      color: var(--v2-text-body);
     }
   }
 
   .card-header {
-    color: rgba(255, 255, 255, 0.88);
+    color: var(--v2-text-strong);
     font-weight: 700;
   }
 
   .info {
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--v2-text-body);
     line-height: 1.8;
     .contact {
       margin-top: 10px;
       a {
-        color: rgba(255, 255, 255, 0.92);
+        color: var(--v2-gold);
         text-decoration: underline;
       }
     }

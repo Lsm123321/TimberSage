@@ -172,16 +172,20 @@ const batchDelete = async () => {
   .batch-actions {
     margin-top: 20px;
     padding: 10px;
-    background: #f5f7fa;
+    background: var(--v2-surface-soft);
     border-radius: 4px;
   }
 
-  /* 局部修复：类型列 tag 在浅底表格上发白（被全局 .el-tag / 文本色覆盖） */
+  /*
+    表格配色跟随主题。
+    原先把表格写死成白底深字（修深色下的发白），
+    结果深色主题里整张表变成刺眼白块；改用语义 token 后两套主题都成立。
+  */
   :deep(.admin-comment-table) {
-    --cm-table-bg: rgba(255, 255, 255, 0.92);
-    --cm-table-bg-alt: rgba(248, 250, 252, 0.92);
-    --cm-table-border: rgba(15, 23, 42, 0.10);
-    --cm-table-text: #1f2937;
+    --cm-table-bg: var(--v2-surface-soft);
+    --cm-table-bg-alt: var(--v2-surface-hover);
+    --cm-table-border: var(--v2-divider);
+    --cm-table-text: var(--v2-text-body);
 
     .el-table {
       background: transparent !important;
@@ -196,15 +200,15 @@ const batchDelete = async () => {
 
     .el-table__header-wrapper th.el-table__cell {
       background: var(--cm-table-bg) !important;
-      color: rgba(15, 23, 42, 0.82) !important;
+      color: var(--v2-text-strong) !important;
       font-weight: 800;
       border-bottom: 1px solid var(--cm-table-border) !important;
     }
 
     .el-table__body-wrapper td.el-table__cell {
-      background: var(--cm-table-bg) !important;
+      background: transparent !important;
       color: var(--cm-table-text) !important;
-      border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+      border-bottom: 1px solid var(--cm-table-border) !important;
     }
 
     .el-table__body tr.el-table__row--striped td.el-table__cell {
@@ -215,6 +219,7 @@ const batchDelete = async () => {
       color: var(--cm-table-text) !important;
     }
 
+    /* 类型标签：默认走主题语义色（一级评论/回复都用低饱和胶囊，深色下不刺眼） */
     .type-tag.el-tag {
       border-radius: 999px;
       padding: 0 10px;
@@ -222,21 +227,21 @@ const batchDelete = async () => {
       line-height: 22px;
       font-weight: 800;
       letter-spacing: 0.2px;
-      border: 1px solid rgba(15, 23, 42, 0.16) !important;
-      background: rgba(15, 23, 42, 0.05) !important;
-      color: rgba(15, 23, 42, 0.88) !important;
+      border: 1px solid var(--v2-border-soft) !important;
+      background: var(--v2-surface-soft) !important;
+      color: var(--v2-text-body) !important;
     }
 
     .type-tag.el-tag--info {
-      border-color: rgba(100, 116, 139, 0.26) !important;
-      background: rgba(100, 116, 139, 0.10) !important;
-      color: rgba(30, 41, 59, 0.90) !important;
+      border-color: var(--v2-info-border) !important;
+      background: var(--v2-info-bg) !important;
+      color: var(--v2-info-text) !important;
     }
 
     .type-tag.el-tag--success {
-      border-color: rgba(16, 185, 129, 0.30) !important;
-      background: rgba(16, 185, 129, 0.12) !important;
-      color: rgba(6, 95, 70, 0.92) !important;
+      border-color: var(--v2-ok-border) !important;
+      background: var(--v2-ok-bg) !important;
+      color: var(--v2-ok-text) !important;
     }
   }
 }

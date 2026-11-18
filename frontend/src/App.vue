@@ -14,6 +14,8 @@
           <component :is="Component" :key="route.fullPath" />
         </Transition>
       </router-view>
+      <!-- 全局登录引导：未登录用户点写操作时统一弹出 -->
+      <LoginGuideDialog />
     </div>
   </el-config-provider>
 </template>
@@ -25,6 +27,7 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import en from 'element-plus/es/locale/lang/en'
 import { useAuthStore } from '@/stores/auth'
 import { useUiPreferences } from '@/composables/useUiPreferences'
+import LoginGuideDialog from '@/components/LoginGuideDialog.vue'
 
 const authStore = useAuthStore()
 const { language, initializePreferences } = useUiPreferences()
@@ -92,7 +95,7 @@ onUnmounted(() => {
   height: 42vw;
   left: 4%;
   top: 10%;
-  background: radial-gradient(circle, rgba(91, 111, 255, 0.52) 0%, rgba(91, 111, 255, 0) 68%);
+  background: radial-gradient(circle, rgba(201, 169, 97, 0.40) 0%, rgba(201, 169, 97, 0) 68%);
 }
 
 .orb-b {
@@ -101,7 +104,7 @@ onUnmounted(() => {
   right: 6%;
   top: 2%;
   animation-duration: 24s;
-  background: radial-gradient(circle, rgba(67, 216, 255, 0.44) 0%, rgba(67, 216, 255, 0) 70%);
+  background: radial-gradient(circle, rgba(124, 156, 146, 0.34) 0%, rgba(124, 156, 146, 0) 70%);
 }
 
 .orb-c {
@@ -110,7 +113,7 @@ onUnmounted(() => {
   left: 24%;
   bottom: -10%;
   animation-duration: 28s;
-  background: radial-gradient(circle, rgba(255, 122, 95, 0.28) 0%, rgba(255, 122, 95, 0) 72%);
+  background: radial-gradient(circle, rgba(178, 67, 47, 0.24) 0%, rgba(178, 67, 47, 0) 72%);
 }
 
 .grid-layer {
@@ -156,8 +159,8 @@ onUnmounted(() => {
   opacity: var(--opacity);
   transition: opacity 280ms ease;
   background:
-    radial-gradient(340px 340px at var(--x) var(--y), rgba(139, 170, 255, 0.20), transparent 68%),
-    radial-gradient(260px 260px at calc(var(--x) + 40px) calc(var(--y) - 20px), rgba(87, 224, 255, 0.15), transparent 70%);
+    radial-gradient(340px 340px at var(--x) var(--y), rgba(201, 169, 97, 0.16), transparent 68%),
+    radial-gradient(260px 260px at calc(var(--x) + 40px) calc(var(--y) - 20px), rgba(124, 156, 146, 0.13), transparent 70%);
 }
 
 .global-page-enter-active {

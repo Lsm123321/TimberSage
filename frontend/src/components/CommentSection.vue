@@ -62,6 +62,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
+import { openLoginGuide } from '@/composables/useLoginGuide'
 import CommentItem from './CommentItem.vue'
 import { Loading } from '@element-plus/icons-vue'
 
@@ -165,7 +166,7 @@ const submitComment = async () => {
   }
 
   if (!isLoggedIn.value) {
-    ElMessage.warning('请先登录')
+    openLoginGuide('评论')
     return
   }
 
@@ -202,7 +203,7 @@ const submitComment = async () => {
 
 const handleCommentLike = async (commentId) => {
   if (!isLoggedIn.value) {
-    ElMessage.warning('请先登录')
+    openLoginGuide('点赞')
     return
   }
 
@@ -227,7 +228,7 @@ const handleCommentLike = async (commentId) => {
 
 const handleReply = async ({ parentId, content }) => {
   if (!isLoggedIn.value) {
-    ElMessage.warning('请先登录')
+    openLoginGuide('评论')
     return
   }
 
@@ -291,8 +292,9 @@ const findCommentById = (id) => {
 
 <style scoped>
 .comment-section {
-  background: white;
-  border-radius: 10px;
+  background: var(--v2-surface-strong);
+  border: 1px solid var(--v2-border-soft);
+  border-radius: var(--v2-radius-lg);
   padding: 20px;
 
   .section-header {
@@ -301,15 +303,15 @@ const findCommentById = (id) => {
     align-items: center;
     margin-bottom: 20px;
     padding-bottom: 15px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--v2-divider);
 
     h3 {
       margin: 0;
       font-size: 18px;
-      color: #333;
+      color: var(--v2-text-strong);
 
       .count {
-        color: #999;
+        color: var(--v2-text-weak);
         font-weight: normal;
         font-size: 14px;
       }
@@ -338,7 +340,7 @@ const findCommentById = (id) => {
       justify-content: center;
       align-items: center;
       padding: 40px 0;
-      color: #999;
+      color: var(--v2-text-weak);
 
       .el-icon {
         margin-right: 10px;
@@ -352,7 +354,7 @@ const findCommentById = (id) => {
     .load-more {
       text-align: center;
       padding: 15px 0;
-      color: #667eea;
+      color: var(--v2-gold);
       cursor: pointer;
 
       &:hover {
@@ -361,45 +363,53 @@ const findCommentById = (id) => {
     }
   }
 
-  /* 局部修复：评论区白底下全局亮色文本导致“发表看法/下拉”看不清 */
+  /*
+    输入框显式引用主题 token。
+    原来这里为了压住全局的浅色文字写死了白底深字，
+    浅色主题没问题，深色主题却会冒出白块，现在两个主题都跟着走。
+  */
   :deep(.el-input__wrapper),
   :deep(.el-select__wrapper) {
-    background: #ffffff !important;
-    box-shadow: 0 0 0 1px rgba(100, 116, 139, 0.32) inset !important;
+    background: var(--v2-surface-input) !important;
+    box-shadow: 0 0 0 1px var(--v2-border-soft) inset !important;
   }
 
   :deep(.el-input__inner),
   :deep(.el-textarea__inner),
   :deep(.el-select__placeholder),
   :deep(.el-select__selected-item) {
-    color: #1f2937 !important;
+    color: var(--v2-text-body) !important;
   }
 
   :deep(.el-input__inner::placeholder),
   :deep(.el-textarea__inner::placeholder) {
-    color: rgba(71, 85, 105, 0.78) !important;
+    color: var(--v2-text-weak) !important;
   }
 
   :deep(.el-input__count-inner) {
-    color: rgba(71, 85, 105, 0.82) !important;
+    color: var(--v2-text-weak) !important;
   }
 }
 </style>
 
 <style>
+/*
+  下拉是 teleport 到 body 上的，只能用全局作用域；
+  颜色同样走主题变量，否则深浅切换后会留一块白底。
+*/
 .comment-sort-popper.el-popper {
-  border: 1px solid rgba(100, 116, 139, 0.25) !important;
-  background: #ffffff !important;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.14) !important;
+  border: 1px solid var(--v2-border-soft) !important;
+  background: var(--v2-surface-strong) !important;
+  box-shadow: var(--v2-shadow) !important;
 }
 
 .comment-sort-popper .el-select-dropdown__item {
-  color: #1f2937 !important;
+  color: var(--v2-text-body) !important;
   font-weight: 600;
 }
 
 .comment-sort-popper .el-select-dropdown__item.is-selected {
-  color: #1d4ed8 !important;
-  background: rgba(37, 99, 235, 0.10) !important;
+  color: var(--v2-chip-text) !important;
+  background: var(--v2-chip-bg) !important;
 }
 </style>

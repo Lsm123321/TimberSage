@@ -1201,15 +1201,15 @@ const submitUpload = async () => {
       align-items: center;
       justify-content: center;
       font-size: 14px;
-      color: #666;
-      background: rgba(245, 245, 245, 0.7);
+      color: var(--v2-text-body);
+      background: color-mix(in srgb, var(--v2-bg-0) 62%, transparent);
       backdrop-filter: blur(2px);
       z-index: 2;
     }
 
     .preview-overlay.error {
-      color: #d92d20;
-      background: rgba(255, 245, 245, 0.85);
+      color: var(--v2-danger-text);
+      background: var(--v2-danger-bg);
       padding: 0 20px;
       text-align: center;
       line-height: 1.6;
@@ -1217,23 +1217,24 @@ const submitUpload = async () => {
 
     .preview-info {
       padding: 10px;
-      background: #f9f9f9;
+      background: var(--v2-surface-soft);
       border-radius: 8px;
 
       h3 {
         margin: 0 0 10px 0;
+        color: var(--v2-text-strong);
       }
 
       p {
         margin: 5px 0;
-        color: #666;
+        color: var(--v2-text-body);
       }
     }
   }
 
   .upload-tip {
     margin-top: 6px;
-    color: #999;
+    color: var(--v2-text-weak);
     font-size: 12px;
   }
 
@@ -1264,13 +1265,17 @@ const submitUpload = async () => {
     margin-bottom: 8px;
   }
 
-  /* 局部修复：全局主题将 el-tag 文本设为浅色，叠加表格浅底后“状态”看不清 */
+  /*
+    模型管理表格配色跟随主题。
+    原先为了修「浅底 + 浅字」把表格整块写死成白底，
+    深色主题下就变成刺眼白块；改用语义 token 后深浅都成立。
+  */
   :deep(.admin-model-table) {
-    --mm-table-bg: rgba(255, 255, 255, 0.92);
-    --mm-table-bg-alt: rgba(248, 250, 252, 0.92);
-    --mm-table-border: rgba(15, 23, 42, 0.10);
-    --mm-table-text: #1f2937;
-    --mm-table-text-dim: rgba(31, 41, 55, 0.78);
+    --mm-table-bg: var(--v2-surface-soft);
+    --mm-table-bg-alt: var(--v2-surface-hover);
+    --mm-table-border: var(--v2-divider);
+    --mm-table-text: var(--v2-text-body);
+    --mm-table-text-dim: var(--v2-text-weak);
 
     .el-table {
       background: transparent !important;
@@ -1285,15 +1290,15 @@ const submitUpload = async () => {
 
     .el-table__header-wrapper th.el-table__cell {
       background: var(--mm-table-bg) !important;
-      color: rgba(15, 23, 42, 0.82) !important;
+      color: var(--v2-text-strong) !important;
       font-weight: 800;
       border-bottom: 1px solid var(--mm-table-border) !important;
     }
 
     .el-table__body-wrapper td.el-table__cell {
-      background: var(--mm-table-bg) !important;
+      background: transparent !important;
       color: var(--mm-table-text) !important;
-      border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+      border-bottom: 1px solid var(--mm-table-border) !important;
     }
 
     .el-table__body tr.el-table__row--striped td.el-table__cell {
@@ -1304,7 +1309,23 @@ const submitUpload = async () => {
       color: var(--mm-table-text) !important;
     }
 
-    /* 状态标签：确保文字与边框在浅底上可读 */
+    /*
+      操作列的按钮：白模/编辑这类次要按钮原来在浅底上白字看不见。
+      这里按当前表底给足对比度，主色按钮（预览/通过）保持原样。
+    */
+    .el-button:not(.el-button--primary):not(.el-button--success):not(.el-button--warning):not(.el-button--danger) {
+      color: var(--v2-text-body) !important;
+      border-color: var(--v2-border-soft) !important;
+      background: var(--v2-surface-strong) !important;
+    }
+
+    .el-button:not(.el-button--primary):not(.el-button--success):not(.el-button--warning):not(.el-button--danger):hover {
+      color: var(--v2-text-strong) !important;
+      border-color: var(--v2-chip-border) !important;
+      background: var(--v2-surface-hover) !important;
+    }
+
+    /* 状态标签 */
     .status-tag.el-tag {
       border-radius: 999px;
       padding: 0 10px;
@@ -1312,31 +1333,31 @@ const submitUpload = async () => {
       line-height: 24px;
       font-weight: 800;
       letter-spacing: 0.2px;
-      border: 1px solid rgba(15, 23, 42, 0.16) !important;
-      background: rgba(15, 23, 42, 0.05) !important;
-      color: rgba(15, 23, 42, 0.88) !important;
+      border: 1px solid var(--v2-border-soft) !important;
+      background: var(--v2-surface-soft) !important;
+      color: var(--v2-text-body) !important;
     }
 
-    /* 兼容不同 type 的底色（覆盖 element-plus 默认浅色方案，提高对比度） */
+    /* 状态语义色：直接复用主题里的 ok/warn/danger/info 四组 */
     .status-tag.el-tag--success {
-      border-color: rgba(16, 185, 129, 0.30) !important;
-      background: rgba(16, 185, 129, 0.10) !important;
-      color: rgba(6, 95, 70, 0.92) !important;
+      border-color: var(--v2-ok-border) !important;
+      background: var(--v2-ok-bg) !important;
+      color: var(--v2-ok-text) !important;
     }
     .status-tag.el-tag--warning {
-      border-color: rgba(245, 158, 11, 0.32) !important;
-      background: rgba(245, 158, 11, 0.12) !important;
-      color: rgba(120, 53, 15, 0.92) !important;
+      border-color: var(--v2-warn-border) !important;
+      background: var(--v2-warn-bg) !important;
+      color: var(--v2-warn-text) !important;
     }
     .status-tag.el-tag--danger {
-      border-color: rgba(239, 68, 68, 0.30) !important;
-      background: rgba(239, 68, 68, 0.10) !important;
-      color: rgba(127, 29, 29, 0.92) !important;
+      border-color: var(--v2-danger-border) !important;
+      background: var(--v2-danger-bg) !important;
+      color: var(--v2-danger-text) !important;
     }
     .status-tag.el-tag--info {
-      border-color: rgba(100, 116, 139, 0.26) !important;
-      background: rgba(100, 116, 139, 0.10) !important;
-      color: rgba(30, 41, 59, 0.88) !important;
+      border-color: var(--v2-info-border) !important;
+      background: var(--v2-info-bg) !important;
+      color: var(--v2-info-text) !important;
     }
   }
 }

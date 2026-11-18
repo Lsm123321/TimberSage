@@ -17,8 +17,9 @@
         <el-menu-item index="/admin/site-feedback"><el-icon><ChatSquare /></el-icon><span>{{ t('siteFeedbackManage') }}</span></el-menu-item>
         <el-menu-item index="/admin/comments"><el-icon><ChatLineSquare /></el-icon><span>{{ t('commentManage') }}</span></el-menu-item>
         <el-menu-item index="/admin/questions"><el-icon><QuestionFilled /></el-icon><span>{{ t('questionManage') }}</span></el-menu-item>
+        <el-menu-item index="/admin/knowledge"><el-icon><Collection /></el-icon><span>{{ t('knowledgeManage') }}</span></el-menu-item>
         <el-menu-item index="/admin/statistics"><el-icon><DataLine /></el-icon><span>{{ t('statistics') }}</span></el-menu-item>
-        <el-menu-item index="/admin/voices"><el-icon><Microphone /></el-icon><span>音色管理</span></el-menu-item>
+        <el-menu-item index="/admin/voices"><el-icon><Microphone /></el-icon><span>{{ t('voiceManage') }}</span></el-menu-item>
       </el-menu>
     </aside>
 
@@ -67,6 +68,7 @@ import {
   ChatSquare,
   ChatLineSquare,
   QuestionFilled,
+  Collection,
   DataLine,
   TrendCharts,
   ArrowDown,
@@ -89,9 +91,10 @@ const currentPageTitle = computed(() => {
 
 const handleCommand = (command) => {
   if (command === 'logout') {
-    authStore.logout()
-    ElMessage.success('已退出登录')
-    router.push('/login')
+    // 后台登出回到后台自己的登录页，不要跳前台登录
+    authStore.clearAuth()
+    ElMessage.success(t('logoutSuccess'))
+    router.push('/admin/login')
   } else if (command === 'profile') {
     router.push('/profile')
   }
@@ -129,13 +132,13 @@ onMounted(() => {
   &::before {
     top: -120px;
     right: -80px;
-    background: radial-gradient(circle, rgba(98, 121, 255, 0.48), rgba(98, 121, 255, 0));
+    background: radial-gradient(circle, rgba(201, 169, 97, 0.38), rgba(201, 169, 97, 0));
   }
 
   &::after {
     left: -120px;
     bottom: -120px;
-    background: radial-gradient(circle, rgba(77, 216, 255, 0.42), rgba(77, 216, 255, 0));
+    background: radial-gradient(circle, rgba(124, 156, 146, 0.32), rgba(124, 156, 146, 0));
     animation-duration: 18s;
   }
 
@@ -182,7 +185,7 @@ onMounted(() => {
       :deep(.el-menu-item) {
         margin: 8px 0;
         border-radius: 14px;
-        color: var(--v2-text-dim);
+        color: var(--v2-text-body);
         transition: transform 220ms ease, background 220ms ease, color 220ms ease;
         position: relative;
         overflow: hidden;
@@ -196,13 +199,13 @@ onMounted(() => {
         width: 38%;
         height: 140%;
         transform: rotate(14deg);
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--v2-gold) 26%, transparent), transparent);
         opacity: 0;
       }
 
       :deep(.el-menu-item:hover) {
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--v2-text);
+        background: var(--v2-surface-hover);
+        color: var(--v2-text-strong);
         transform: translate3d(2px, -1px, 0);
       }
 
@@ -212,9 +215,9 @@ onMounted(() => {
       }
 
       :deep(.el-menu-item.is-active) {
-        color: #fff1d8;
-        background: linear-gradient(90deg, rgba(202, 163, 106, 0.24), rgba(143, 59, 47, 0.2));
-        box-shadow: inset 0 0 0 1px rgba(202, 163, 106, 0.22);
+        color: var(--v2-chip-text);
+        background: var(--v2-chip-bg);
+        box-shadow: inset 0 0 0 1px var(--v2-chip-border);
       }
     }
   }
@@ -247,26 +250,26 @@ onMounted(() => {
         gap: 8px;
         padding: 6px 12px;
         border-radius: 999px;
-        color: rgba(241, 245, 249, 0.96);
-        background: rgba(22, 28, 40, 0.52);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+        color: var(--v2-text-strong);
+        background: var(--v2-surface);
+        border: 1px solid var(--v2-border-soft);
+        box-shadow: var(--v2-shadow-soft);
         cursor: pointer;
         transition: transform 220ms var(--v2-ease), background 220ms var(--v2-ease), border-color 220ms var(--v2-ease);
 
         &:hover {
           transform: translate3d(0, -1px, 0);
-          background: rgba(22, 28, 40, 0.66);
-          border-color: rgba(255, 255, 255, 0.16);
+          background: var(--v2-surface-strong);
+          border-color: var(--v2-chip-border);
         }
 
         :deep(.el-icon) {
-          color: rgba(241, 245, 249, 0.78);
+          color: var(--v2-text-body);
         }
       }
 
       .username {
-        color: rgba(241, 245, 249, 0.96);
+        color: var(--v2-text-strong);
         font-weight: 650;
         letter-spacing: 0.2px;
         text-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
@@ -336,37 +339,5 @@ onMounted(() => {
 }
 </style>
 
-<style lang="scss">
-.v2-user-dropdown {
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  background: rgba(22, 28, 40, 0.88) !important;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.42) !important;
-  backdrop-filter: blur(12px) saturate(1.2);
-  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+<!-- 用户下拉菜单样式已统一收敛到 assets/styles/main.scss -->
 
-  --el-dropdown-menu-box-shadow: none;
-  --el-dropdown-menuItem-hover-fill: rgba(255, 255, 255, 0.1);
-  --el-dropdown-menuItem-hover-color: #ffffff;
-  --el-dropdown-menuItem-divided-color: rgba(255, 255, 255, 0.16);
-  --el-text-color-primary: rgba(241, 245, 249, 0.94);
-}
-
-.v2-user-dropdown .el-dropdown-menu {
-  background: transparent !important;
-  padding: 8px 6px !important;
-}
-
-.v2-user-dropdown .el-dropdown-menu__item {
-  color: rgba(241, 245, 249, 0.94) !important;
-  font-weight: 650;
-}
-
-.v2-user-dropdown .el-dropdown-menu__item:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: #ffffff !important;
-}
-
-.v2-user-dropdown .el-dropdown-menu__item--divided::before {
-  background-color: rgba(255, 255, 255, 0.16) !important;
-}
-</style>

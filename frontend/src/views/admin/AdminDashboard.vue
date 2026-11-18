@@ -260,12 +260,12 @@ const goToUsers = () => router.push('/admin/users')
     .quick-welcome {
       font-size: 18px;
       font-weight: 700;
-      color: #333;
+      color: var(--v2-text-strong);
     }
 
     .quick-sub {
       font-size: 13px;
-      color: #777;
+      color: var(--v2-text-weak);
     }
 
     .quick-actions {
@@ -291,7 +291,7 @@ const goToUsers = () => router.push('/admin/users')
 
       .el-icon {
         font-size: 28px;
-        color: white;
+        color: var(--v2-accent-contrast);
       }
     }
 
@@ -301,12 +301,12 @@ const goToUsers = () => router.push('/admin/users')
       .stat-value {
         font-size: 28px;
         font-weight: bold;
-        color: #333;
+        color: var(--v2-text-strong);
       }
 
       .stat-label {
         font-size: 14px;
-        color: #999;
+        color: var(--v2-text-weak);
       }
     }
   }

@@ -317,8 +317,9 @@ defineExpose({
 
 <style scoped>
 .material-panel {
-  background: white;
-  border-radius: 8px;
+  background: var(--v2-surface-strong);
+  border: 1px solid var(--v2-border-soft);
+  border-radius: var(--v2-radius-md);
   padding: 10px;
 
   .material-controls {
@@ -330,7 +331,7 @@ defineExpose({
       label {
         width: 100px;
         font-size: 14px;
-        color: #666;
+        color: var(--v2-text-body);
       }
 
       .el-slider {
@@ -342,7 +343,7 @@ defineExpose({
         width: 40px;
         text-align: right;
         font-size: 12px;
-        color: #999;
+        color: var(--v2-text-weak);
       }
     }
 
@@ -369,7 +370,7 @@ defineExpose({
     }
 
     .login-tip {
-      color: #999;
+      color: var(--v2-text-weak);
       font-size: 12px;
       text-align: center;
     }

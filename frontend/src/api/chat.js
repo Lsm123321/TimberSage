@@ -84,10 +84,19 @@ export async function streamChat({ question, modelId, sessionId, record = false,
   }
 }
 
-export const getPresetQuestions = (modelId) => {
+/**
+ * 预设问题。
+ * @param modelId 模型 id，AI 问答页不传（取全局问题）
+ * @param scene   'chat' = AI 问答页，'model' = 模型详情页悬浮问答；
+ *                不传则两处共用同一批（兼容旧数据）
+ */
+export const getPresetQuestions = (modelId, scene = null) => {
   const params = {}
   if (modelId !== null && modelId !== undefined && modelId !== '') {
     params.modelId = modelId
+  }
+  if (scene) {
+    params.scene = scene
   }
   return request({
     url: '/preset-questions',

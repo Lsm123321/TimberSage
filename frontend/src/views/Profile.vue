@@ -70,7 +70,7 @@
       </div>
     </div>
 
-    <el-tabs v-model="activeTab" class="profile-tabs" tab-position="left">
+    <el-tabs v-model="activeTab" class="profile-tabs" :tab-position="tabPosition">
       <el-tab-pane :label="t('profileBasicInfo')" name="info">
         <el-card>
           <template #header>
@@ -343,11 +343,9 @@
           </div>
           <div v-else class="model-card-grid">
             <div v-for="item in pendingModels" :key="item.id" class="model-card">
-              <div class="card-image" @click="openPendingModelInAdmin(item)">
+              <!-- 待审核模型只展示状态，不再提供跳转后台的入口 -->
+              <div class="card-image">
                 <img :src="item.thumbnailPath || defaultImage" :alt="item.modelName" />
-                <div class="card-overlay">
-                  <span class="view-btn">{{ t('backendPreview') }}</span>
-                </div>
                 <div class="card-badges">
                   <el-tag size="small" type="warning">{{ t('pendingReview') }}</el-tag>
                   <el-tag v-if="item.categoryName" size="small" type="info">{{ item.categoryName }}</el-tag>
@@ -608,6 +606,7 @@ import {
 import { ElMessage } from 'element-plus'
 import request from '@/utils/request'
 import { useUiPreferences } from '@/composables/useUiPreferences'
+import { openLoginGuide } from '@/composables/useLoginGuide'
 
 const router = useRouter()
 const route = useRoute()
@@ -615,6 +614,40 @@ const authStore = useAuthStore()
 const { t, language } = useUiPreferences()
 
 const activeTab = ref('info')
+
+/**
+ * 窄屏时标签栏从左侧竖排切到顶部横排。
+ * el-tabs 的 tab-position 是 prop 不是 CSS，只能用 JS 跟随视口宽度。
+ */
+const NARROW_QUERY = '(max-width: 640px)'
+const isNarrow = ref(false)
+const tabPosition = computed(() => (isNarrow.value ? 'top' : 'left'))
+
+let narrowMedia = null
+const onNarrowChange = (e) => {
+  isNarrow.value = e.matches
+}
+
+onMounted(() => {
+  if (typeof window === 'undefined' || !window.matchMedia) return
+  narrowMedia = window.matchMedia(NARROW_QUERY)
+  isNarrow.value = narrowMedia.matches
+  // addEventListener 在老 Safari 上不存在，退回 addListener
+  if (narrowMedia.addEventListener) {
+    narrowMedia.addEventListener('change', onNarrowChange)
+  } else {
+    narrowMedia.addListener(onNarrowChange)
+  }
+})
+
+onUnmounted(() => {
+  if (!narrowMedia) return
+  if (narrowMedia.removeEventListener) {
+    narrowMedia.removeEventListener('change', onNarrowChange)
+  } else {
+    narrowMedia.removeListener(onNarrowChange)
+  }
+})
 
 /** 概览统计卡点击后切到对应标签，顺手把地址栏参数也同步，刷新不丢 */
 const switchTab = (name) => {
@@ -813,6 +846,16 @@ const getRoleText = (role) => {
 }
 
 onMounted(() => {
+  /*
+    未登录不发起任何数据请求。
+    个人中心的每个接口都要登录，游客（或 token 已失效的访问者）进来时
+    会并发触发一串 401/403；拦截器会弹登录引导，这里直接不发请求，
+    页面保持空态即可。带失效 token 的情况由请求拦截器统一兜底。
+  */
+  if (!authStore.token) {
+    openLoginGuide('修改资料')
+    return
+  }
   if (userInfo.value) {
     form.username = userInfo.value.username || ''
     form.nickname = userInfo.value.nickname || ''
@@ -1302,11 +1345,6 @@ const goToDetail = (modelId) => {
   router.push(`/buildings/${modelId}`)
 }
 
-const openPendingModelInAdmin = (model) => {
-  if (!model?.id) return
-  router.push(`/admin/models?status=0&previewModelId=${model.id}`)
-}
-
 // 监听标签页切换，加载对应数据
 watch(activeTab, (newTab) => {
   switch (newTab) {
@@ -1362,9 +1400,9 @@ watch(
     font-size: 13px;
     font-weight: 600;
     letter-spacing: 0.2px;
-    color: #7c2d12;
-    background: #fff7ed;
-    border: 1px solid #fed7aa;
+    color: var(--v2-chip-text);
+    background: var(--v2-chip-bg);
+    border: 1px solid var(--v2-chip-border);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -1374,10 +1412,12 @@ watch(
     align-items: center;
     gap: 20px;
     flex-wrap: wrap;
-    background: white;
+    background: var(--v2-surface-strong);
+    border: 1px solid var(--v2-border-soft);
     padding: 30px;
-    border-radius: 10px;
+    border-radius: var(--v2-radius-lg);
     margin-bottom: 20px;
+    box-shadow: var(--v2-shadow-soft);
 
     // 概览统计：贴右侧，窄屏自动换到下一行
     .profile-stats {
@@ -1398,21 +1438,21 @@ watch(
         transition: background 180ms ease, transform 180ms ease;
 
         &:hover {
-          background: #f1f5f9;
+          background: var(--v2-surface-hover);
           transform: translateY(-2px);
         }
 
         .stat-value {
           font-size: 20px;
           font-weight: 700;
-          color: #1f2937;
+          color: var(--v2-text-strong);
           font-variant-numeric: tabular-nums;
           line-height: 1.1;
         }
 
         .stat-label {
           font-size: 12px;
-          color: #64748b;
+          color: var(--v2-text-weak);
           white-space: nowrap;
         }
       }
@@ -1443,8 +1483,8 @@ watch(
         justify-content: center;
         gap: 2px;
         border-radius: 50%;
-        background: rgba(15, 23, 42, 0.62);
-        color: #fff;
+        background: color-mix(in srgb, var(--v2-bg-0) 62%, transparent);
+        color: var(--v2-text-strong);
         font-size: 12px;
         line-height: 1.2;
         opacity: 0;
@@ -1462,11 +1502,11 @@ watch(
 
       // 拖拽悬停时高亮，明确告诉用户这里可以放
       &.is-dragover {
-        box-shadow: 0 0 0 3px rgba(79, 121, 199, 0.85), 0 0 20px rgba(79, 121, 199, 0.5);
+        box-shadow: 0 0 0 3px var(--v2-chip-border), 0 0 20px color-mix(in srgb, var(--v2-gold) 40%, transparent);
 
         .avatar-mask {
           opacity: 1;
-          background: rgba(79, 121, 199, 0.72);
+          background: color-mix(in srgb, var(--v2-gold) 62%, transparent);
         }
       }
 
@@ -1489,12 +1529,12 @@ watch(
 
       h2 {
         font-size: 24px;
-        color: #333;
+        color: var(--v2-text-strong);
         margin-bottom: 10px;
       }
 
       p {
-        color: #999;
+        color: var(--v2-text-weak);
         font-size: 14px;
         margin-bottom: 10px;
       }
@@ -1505,9 +1545,9 @@ watch(
         align-items: center;
 
         :deep(.el-tag) {
-          color: #1f2937 !important;
-          background: #f8fafc !important;
-          border-color: rgba(148, 163, 184, 0.42) !important;
+          color: var(--v2-chip-text) !important;
+          background: var(--v2-chip-bg) !important;
+          border-color: var(--v2-chip-border) !important;
           font-weight: 700;
           letter-spacing: 0.2px;
           text-shadow: none !important;
@@ -1519,15 +1559,15 @@ watch(
         }
 
         :deep(.el-tag.el-tag--danger) {
-          color: #7f1d1d !important;
-          background: #fee2e2 !important;
-          border-color: #fecaca !important;
+          color: var(--v2-danger-text) !important;
+          background: var(--v2-danger-bg) !important;
+          border-color: var(--v2-danger-border) !important;
         }
 
         :deep(.el-button) {
-          color: #1e3a8a !important;
-          border-color: rgba(96, 130, 220, 0.52) !important;
-          background: rgba(239, 246, 255, 0.96) !important;
+          color: var(--v2-text-body) !important;
+          border-color: var(--v2-border-soft) !important;
+          background: var(--v2-surface-soft) !important;
           text-shadow: none !important;
           filter: none !important;
           backdrop-filter: none !important;
@@ -1537,19 +1577,21 @@ watch(
         }
 
         :deep(.el-button:hover) {
-          color: #1d4ed8 !important;
-          background: #ffffff !important;
-          border-color: rgba(59, 130, 246, 0.62) !important;
-          box-shadow: 0 8px 18px rgba(59, 130, 246, 0.18) !important;
+          color: var(--v2-text-strong) !important;
+          background: var(--v2-surface-hover) !important;
+          border-color: var(--v2-gold) !important;
+          box-shadow: none !important;
         }
       }
     }
   }
 
   .profile-tabs {
-    background: white;
+    background: var(--v2-surface-strong);
+    border: 1px solid var(--v2-border-soft);
     padding: 20px;
-    border-radius: 10px;
+    border-radius: var(--v2-radius-lg);
+    box-shadow: var(--v2-shadow-soft);
 
     // 标签改为左侧竖排：原来 8-9 个标签横向挤在一行要左右滚动，
     // 竖排后每项一行，一眼能看全，也方便按用途分组阅读
@@ -1565,20 +1607,23 @@ watch(
       padding: 0 16px;
       border-radius: 8px;
       margin-bottom: 4px;
+      color: var(--v2-text-body);
 
       &:hover {
-        background: #f8fafc;
+        background: var(--v2-surface-soft);
+        color: var(--v2-text-strong);
       }
 
       &.is-active {
-        color: #4f79c7;
-        background: #eff6ff;
+        color: var(--v2-chip-text);
+        background: var(--v2-chip-bg);
         font-weight: 600;
       }
     }
 
     :deep(.el-tabs__active-bar.is-left) {
       border-radius: 2px;
+      background-color: var(--v2-gold);
     }
 
     .profile-form {
@@ -1614,15 +1659,15 @@ watch(
     }
 
     .model-card {
-      background: white;
-      border-radius: 10px;
+      background: var(--v2-surface);
+      border-radius: var(--v2-radius-md);
       overflow: hidden;
-      border: 1px solid #f0f0f0;
+      border: 1px solid var(--v2-border-soft);
       transition: transform 0.3s, box-shadow 0.3s;
 
       &:hover {
         transform: translateY(-4px);
-        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+        box-shadow: var(--v2-shadow-soft);
 
         .card-overlay {
           opacity: 1;
@@ -1643,7 +1688,7 @@ watch(
         .card-overlay {
           position: absolute;
           inset: 0;
-          background: rgba(0, 0, 0, 0.45);
+          background: color-mix(in srgb, var(--v2-bg-0) 52%, transparent);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1652,8 +1697,9 @@ watch(
         }
 
         .view-btn {
-          color: #fff;
-          border: 1px solid #fff;
+          color: var(--v2-text-strong);
+          border: 1px solid var(--v2-chip-border);
+          background: color-mix(in srgb, var(--v2-bg-0) 42%, transparent);
           border-radius: 16px;
           padding: 6px 14px;
           font-size: 12px;
@@ -1675,7 +1721,7 @@ watch(
         .model-name {
           margin: 0 0 6px;
           font-size: 15px;
-          color: #333;
+          color: var(--v2-text-strong);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -1683,13 +1729,13 @@ watch(
 
         .dynasty {
           margin: 0 0 4px;
-          color: #667eea;
+          color: var(--v2-gold);
           font-size: 13px;
         }
 
         .location {
           margin: 0 0 8px;
-          color: #999;
+          color: var(--v2-text-weak);
           font-size: 12px;
           white-space: nowrap;
           overflow: hidden;
@@ -1698,7 +1744,7 @@ watch(
 
         .reject-reason {
           margin: 0 0 8px;
-          color: #d97706;
+          color: var(--v2-danger-text);
           font-size: 12px;
           line-height: 1.4;
           display: -webkit-box;
@@ -1710,7 +1756,7 @@ watch(
         .card-stats {
           display: flex;
           gap: 10px;
-          color: #999;
+          color: var(--v2-text-weak);
           font-size: 12px;
           margin-bottom: 10px;
         }
@@ -1733,7 +1779,7 @@ watch(
         justify-content: flex-start;
         align-items: center;
         padding: 15px 0;
-        border-bottom: 1px solid #eee;
+        border-bottom: 1px solid var(--v2-divider);
         cursor: pointer;
         gap: 12px;
 
@@ -1760,29 +1806,29 @@ watch(
 
           .item-title {
             font-size: 16px;
-            color: #333;
+            color: var(--v2-text-strong);
             margin-bottom: 5px;
             cursor: pointer;
 
             &:hover {
-              color: #409eff;
+              color: var(--v2-gold);
             }
           }
 
           .item-content {
             font-size: 14px;
-            color: #666;
+            color: var(--v2-text-body);
             margin: 5px 0;
           }
 
           .item-meta {
             font-size: 12px;
-            color: #999;
+            color: var(--v2-text-weak);
           }
 
           .item-question {
             font-size: 14px;
-            color: #333;
+            color: var(--v2-text-strong);
             margin-bottom: 5px;
           }
 
@@ -1792,7 +1838,7 @@ watch(
 
           .item-answer {
             font-size: 14px;
-            color: #666;
+            color: var(--v2-text-body);
             margin-bottom: 5px;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -1805,18 +1851,18 @@ watch(
             margin-top: 8px;
             padding: 8px 10px;
             border-radius: 6px;
-            background: #f6f8fa;
-            border-left: 3px solid #409eff;
+            background: var(--v2-surface-soft);
+            border-left: 3px solid var(--v2-gold);
 
             .note-label {
               font-size: 12px;
-              color: #909399;
+              color: var(--v2-text-weak);
               margin-bottom: 4px;
             }
 
             .note-content {
               font-size: 13px;
-              color: #606266;
+              color: var(--v2-text-body);
               white-space: pre-wrap;
               line-height: 1.6;
             }
@@ -1830,12 +1876,18 @@ watch(
       }
     }
 
-    @media (max-width: 1200px) {
-      .model-card-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-    }
 
+
+    /*
+      平板：头部统计从右侧换行到下方整宽，避免被挤出容器；
+      左侧标签收窄，给表单留出更多空间。
+    */
+
+    /*
+      手机：标签栏由左侧竖排改为顶部横排并允许横向滚动。
+      竖排侧栏在 375px 下会吃掉近 40% 宽度，右侧表单被压到看不清。
+    */
+  }
     @media (max-width: 900px) {
       .model-card-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1845,7 +1897,119 @@ watch(
         width: 220px;
       }
     }
-  }
+
+    @media (max-width: 1024px) {
+      .profile-header {
+        flex-wrap: wrap;
+        padding: 20px;
+
+        .profile-stats {
+          width: 100%;
+          margin-left: 0;
+          margin-top: 14px;
+          justify-content: space-around;
+
+          .stat-item {
+            min-width: 0;
+            flex: 1;
+            padding: 6px 4px;
+          }
+        }
+      }
+
+      .profile-tabs {
+        :deep(.el-tabs__header.is-left) {
+          min-width: 108px;
+          margin-right: 12px;
+        }
+      }
+    }
+
+    @media (max-width: 640px) {
+      .profile-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 16px;
+
+        .avatar-wrap {
+          width: 64px;
+          height: 64px;
+        }
+
+        .user-info {
+          margin-left: 0;
+        }
+
+        .profile-stats {
+          margin-top: 4px;
+          margin-left: 0;
+          width: 100%;
+          justify-content: space-between;
+          gap: 0;
+          // 四项必须挤在一行，否则会换行后溢出容器
+          flex-wrap: nowrap;
+          overflow: hidden;
+
+          .stat-item {
+            /* 覆盖基础规则的 min-width:72px —— 四个 72px 在 375px 屏上放不下 */
+            min-width: 0;
+            flex: 1 1 0;
+            padding: 6px 0;
+
+            .stat-value {
+              font-size: 17px;
+            }
+
+            .stat-label {
+              font-size: 11px;
+              // 标签可能被压到换行，限制成单行省略
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              max-width: 100%;
+            }
+          }
+        }
+      }
+
+      .profile-tabs {
+        padding: 12px;
+
+        // el-tabs 在窄屏切换成顶部标签，横向滚动而不是换行
+        :deep(.el-tabs__header.is-left) {
+          min-width: 0;
+          margin-right: 0;
+        }
+
+        :deep(.el-tabs__nav-scroll) {
+          overflow-x: auto;
+        }
+
+        .profile-form {
+          margin-top: 12px;
+        }
+
+        .model-card-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .tab-header-row {
+          flex-wrap: wrap;
+        }
+
+        .tab-search-input {
+          width: 100%;
+        }
+      }
+    }
+
+
+    @media (max-width: 1200px) {
+      .model-card-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
 }
 
 @keyframes avatar-spin {

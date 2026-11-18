@@ -1,27 +1,32 @@
 @use './theme';
 
 :root {
-  --app-bg: #0b1320;
-  --app-bg-secondary: #111c2e;
-  --panel-bg: rgba(17, 28, 46, 0.72);
-  --panel-bg-strong: rgba(17, 28, 46, 0.88);
-  --panel-border: rgba(255, 255, 255, 0.08);
-  --text-primary: #f3ead8;
-  --text-secondary: #c3b79f;
-  --text-muted: #8c95a6;
-  --text-ink: #6b5f4c;
-  --text-ink-strong: #4f4536;
-  --accent-gold: #caa36a;
-  --accent-gold-strong: #e0b878;
-  --accent-cinnabar: #8f3b2f;
-  --accent-cyan: #8fb7c9;
-  --shadow-soft: 0 16px 40px rgba(0, 0, 0, 0.24);
-  --shadow-glow: 0 0 0 1px rgba(202, 163, 106, 0.18), 0 18px 60px rgba(3, 10, 18, 0.35);
-  --radius-xl: 24px;
-  --radius-lg: 18px;
-  --radius-md: 14px;
+  /*
+    这些旧 token 之前把深色值写死在 :root，浅色主题切换时它们不会跟着变，
+    导致 el-card / 表格 / 输入框继续是深底，再叠上浅色文字就看不清。
+    现在统一映射到 theme-v2 的语义 token，深浅两套自动生效。
+  */
+  --app-bg: var(--v2-bg-0, #0b1320);
+  --app-bg-secondary: var(--v2-bg-1, #111c2e);
+  --panel-bg: var(--v2-surface, rgba(17, 28, 46, 0.72));
+  --panel-bg-strong: var(--v2-surface-strong, rgba(17, 28, 46, 0.88));
+  --panel-border: var(--v2-border-soft, rgba(255, 255, 255, 0.08));
+  --text-primary: var(--v2-text-strong, #f3ead8);
+  --text-secondary: var(--v2-text-body, #c3b79f);
+  --text-muted: var(--v2-text-weak, #8c95a6);
+  --text-ink: var(--v2-text-body, #6b5f4c);
+  --text-ink-strong: var(--v2-text-strong, #4f4536);
+  --accent-gold: var(--v2-gold, #caa36a);
+  --accent-gold-strong: var(--v2-gold, #e0b878);
+  --accent-cinnabar: var(--v2-vermillion, #8f3b2f);
+  --accent-cyan: var(--v2-cyan, #8fb7c9);
+  --shadow-soft: var(--v2-shadow-soft, 0 16px 40px rgba(0, 0, 0, 0.24));
+  --shadow-glow: 0 0 0 1px rgba(202, 163, 106, 0.18), var(--v2-shadow, 0 18px 60px rgba(3, 10, 18, 0.35));
+  --radius-xl: var(--v2-radius-xl, 24px);
+  --radius-lg: var(--v2-radius-lg, 18px);
+  --radius-md: var(--v2-radius-md, 14px);
   --transition-base: 220ms ease;
-  --el-color-primary: #caa36a;
+  --el-color-primary: var(--v2-gold, #caa36a);
   --el-color-primary-light-3: #d7b381;
   --el-color-primary-light-5: #e4c79e;
   --el-color-primary-light-7: #f0dcc0;
@@ -177,7 +182,8 @@ ol {
 }
 
 .el-card__header {
-  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+  border-bottom-color: var(--v2-divider, rgba(255, 255, 255, 0.06)) !important;
+  color: var(--v2-text-strong, #f3ead8);
 }
 
 .el-card__body,
@@ -196,7 +202,7 @@ ol {
 
 .el-button {
   border-radius: 999px !important;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border: 1px solid var(--v2-border-soft, rgba(255, 255, 255, 0.16)) !important;
   background-image: var(--btn-bg-mix);
   background-size: 180% 180%;
   position: relative;
@@ -207,6 +213,14 @@ ol {
     border-color var(--transition-base),
     filter var(--transition-base),
     background-position 320ms ease !important;
+}
+
+/* 浅色主题里默认按钮要有可读的深字 + 白底，否则会和深色背景时期的浅字打在一起。
+   注意排除 success/warning/danger/info：这四个有各自的底色，不能被刷成白底。 */
+html[data-theme='v2-light'] .el-button:not(.el-button--primary):not(.el-button--success):not(.el-button--warning):not(.el-button--danger):not(.el-button--info):not(.is-text):not(.is-link) {
+  color: var(--v2-text-body, #1b2b42);
+  background-color: rgba(255, 255, 255, 0.9);
+  border-color: var(--v2-border-soft, rgba(24, 52, 88, 0.14)) !important;
 }
 
 .el-button:hover {
@@ -234,6 +248,95 @@ ol {
 
 .el-button--primary {
   box-shadow: var(--btn-shadow-primary);
+  /*
+    暖金底配白字对比度只有 2:1 左右，长时间看很累。
+    统一用深墨色文字（accent-contrast：浅色 #2a1e0a、深色 #1b1408），
+    视觉上也更接近传统匾额「金地墨字」的质感。
+  */
+  color: var(--v2-accent-contrast, #1b1408) !important;
+}
+
+/* 主按钮在深色主题里底色是浅金，hover 加深时字色保持深墨 */
+.el-button--primary.is-text,
+.el-button--primary.is-link {
+  color: var(--v2-chip-text) !important;
+}
+
+/*
+  朴素主按钮（plain）：
+  Element Plus 的浅色底取自 --el-color-primary-light-9（两套主题都是奶白），
+  但字色会跟着主题变，深色主题下就成了浅字压奶白底。
+  这里把底和字都换成主题 chip 色，语义仍然是"金色强调"。
+*/
+.el-button--primary.is-plain {
+  background-color: var(--v2-chip-bg) !important;
+  border-color: var(--v2-chip-border) !important;
+  color: var(--v2-chip-text) !important;
+}
+
+.el-button--primary.is-plain:hover {
+  background-color: color-mix(in srgb, var(--v2-gold) 24%, transparent) !important;
+  border-color: var(--v2-gold) !important;
+  color: var(--v2-text-strong) !important;
+}
+
+/*
+  禁用态：Element 会把主按钮换成浅金底，
+  此时再用 accent-contrast（浅色主题是奶白）就变成白字白底。
+  统一按主题给一层低对比但可读的禁用色。
+*/
+.el-button.is-disabled,
+.el-button.is-disabled:hover,
+.el-button--primary.is-disabled,
+.el-button--primary.is-disabled:hover {
+  color: var(--v2-text-weak) !important;
+  background-color: var(--v2-surface-soft) !important;
+  border-color: var(--v2-border-soft) !important;
+  box-shadow: none !important;
+  opacity: 1;
+  filter: none !important;
+}
+
+/* 语义色按钮（成功/警告/危险）保持白字，这些底色足够深 */
+.el-button--success,
+.el-button--warning,
+.el-button--danger {
+  color: #fff !important;
+}
+
+/*
+  Element Plus 默认的成功绿 #67c23a / 危险红 #f56c6c 配白字只有 2.2~2.9:1，
+  小号按钮上几乎糊成一片。这里换成更深一档的同色系，白字对比度提到 5:1 以上，
+  语义（绿=通过、红=驳回/删除）不变。
+*/
+.el-button--success {
+  background-color: #2f7a2a !important;
+  border-color: #2f7a2a !important;
+}
+
+.el-button--success:hover {
+  background-color: #3a8f33 !important;
+  border-color: #3a8f33 !important;
+}
+
+.el-button--danger {
+  background-color: #b93a3a !important;
+  border-color: #b93a3a !important;
+}
+
+.el-button--danger:hover {
+  background-color: #cb4747 !important;
+  border-color: #cb4747 !important;
+}
+
+.el-button--warning {
+  background-color: #9a6414 !important;
+  border-color: #9a6414 !important;
+}
+
+.el-button--warning:hover {
+  background-color: #ad741b !important;
+  border-color: #ad741b !important;
 }
 
 .el-button:not(.el-button--primary) {
@@ -264,8 +367,22 @@ html[data-button-style='neon'] .el-button {
   border-color: rgba(120, 98, 255, 0.42) !important;
 }
 
-html[data-button-style='neon'] .el-button--primary {
-  color: #fdfcff !important;
+/*
+  霓虹模式的主按钮：
+  底色是主题金 + 紫青叠加，深色主题下偏亮、浅色主题下偏深，
+  文字统一走 accent-contrast（深色给深字、浅色给奶白字），两种主题都可读。
+  之前写死 #fdfcff 白字，深色主题的金底上只有约 2:1；
+  禁用态更糟——底被换成近白的 surface-soft，白字直接消失。
+  这里排除禁用态，让全局禁用规则接管。
+*/
+html[data-button-style='neon'] .el-button--primary:not(.is-disabled) {
+  color: var(--v2-accent-contrast) !important;
+}
+
+/* 霓虹禁用态：保持全局禁用色的同时保留霓虹描边，避免看起来像坏了 */
+html[data-button-style='neon'] .el-button.is-disabled {
+  border-color: var(--v2-border-soft) !important;
+  box-shadow: none !important;
 }
 
 @keyframes v2-aura-drift {
@@ -285,8 +402,8 @@ html[data-button-style='neon'] .el-button--primary {
 .el-input__wrapper,
 .el-textarea__inner,
 .el-select__wrapper {
-  background: rgba(255, 255, 255, 0.04) !important;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset !important;
+  background: var(--v2-surface-input, rgba(255, 255, 255, 0.04)) !important;
+  box-shadow: 0 0 0 1px var(--v2-border-soft, rgba(255, 255, 255, 0.08)) inset !important;
 }
 
 .el-input__wrapper.is-focus,
@@ -301,38 +418,99 @@ html[data-button-style='neon'] .el-button--primary {
 .el-dropdown-link,
 .el-pagination,
 .el-empty__description p {
-  color: var(--text-primary);
+  color: var(--v2-text-body);
+}
+
+/* 面包屑分隔符与表格空态文字：默认灰阶偏浅，两套主题下都补一点对比度 */
+.el-breadcrumb__separator {
+  color: var(--v2-text-body) !important;
+}
+
+.el-table__empty-text {
+  color: var(--v2-text-body) !important;
+}
+
+.el-empty__description p {
+  color: var(--v2-text-weak) !important;
+}
+
+/* 输入框字数统计：Element 默认 #909399，浅底上只有 3:1 */
+.el-input__count,
+.el-input__count-inner {
+  color: var(--v2-text-weak) !important;
+  background: transparent !important;
 }
 
 .el-tabs__item {
-  color: var(--text-ink) !important;
+  color: var(--v2-text-weak) !important;
 }
 
 .el-tabs__item.is-active,
 .el-tabs__item:hover {
-  color: var(--text-ink-strong) !important;
+  color: var(--v2-text-strong) !important;
 }
 
 .el-menu--horizontal > .el-menu-item,
 .el-menu--horizontal > .el-sub-menu .el-sub-menu__title {
-  color: var(--text-ink) !important;
+  color: var(--v2-text-weak) !important;
 }
 
 .el-menu--horizontal > .el-menu-item.is-active,
 .el-menu--horizontal > .el-menu-item:hover,
 .el-menu--horizontal > .el-sub-menu .el-sub-menu__title:hover {
-  color: var(--text-ink-strong) !important;
+  color: var(--v2-text-strong) !important;
 }
 
 .el-tag {
-  border-color: rgba(202, 163, 106, 0.18) !important;
-  background: rgba(202, 163, 106, 0.12) !important;
+  border-color: var(--v2-chip-border, rgba(202, 163, 106, 0.18)) !important;
+  background: var(--v2-chip-bg, rgba(202, 163, 106, 0.12)) !important;
+}
+
+/* 默认（无 type）标签给个跟主题走的文字色 */
+.el-tag:not(.el-tag--success):not(.el-tag--warning):not(.el-tag--danger):not(.el-tag--info):not(.el-tag--primary) {
+  color: var(--v2-chip-text, #f0dfbd);
+}
+
+/*
+  带语义的标签统一用主题语义色。
+  Element 自带的 success/warning 底色配上 effect="dark" 时，
+  深色主题下会出现「深棕字压深底」，必须整套替换掉。
+*/
+.el-tag--success {
+  border-color: var(--v2-ok-border) !important;
+  background: var(--v2-ok-bg) !important;
+  color: var(--v2-ok-text) !important;
+}
+
+.el-tag--warning {
+  border-color: var(--v2-warn-border) !important;
+  background: var(--v2-warn-bg) !important;
+  color: var(--v2-warn-text) !important;
+}
+
+.el-tag--danger {
+  border-color: var(--v2-danger-border) !important;
+  background: var(--v2-danger-bg) !important;
+  color: var(--v2-danger-text) !important;
+}
+
+.el-tag--info {
+  border-color: var(--v2-info-border) !important;
+  background: var(--v2-info-bg) !important;
+  color: var(--v2-info-text) !important;
+}
+
+.el-tag--primary {
+  border-color: var(--v2-chip-border) !important;
+  background: var(--v2-chip-bg) !important;
+  color: var(--v2-chip-text) !important;
 }
 
 .el-table {
   border-radius: 14px;
   overflow: hidden;
-  background: rgba(10, 16, 28, 0.38) !important;
+  background: var(--v2-surface-soft, rgba(10, 16, 28, 0.38)) !important;
+  color: var(--v2-text-body, #f3ead8);
 }
 
 .el-table th.el-table__cell,
@@ -342,8 +520,8 @@ html[data-button-style='neon'] .el-button--primary {
 }
 
 .el-table th.el-table__cell {
-  background: rgba(255, 255, 255, 0.06) !important;
-  color: rgba(250, 247, 239, 0.95) !important;
+  background: var(--v2-surface-soft, rgba(255, 255, 255, 0.06)) !important;
+  color: var(--v2-text-strong, rgba(250, 247, 239, 0.95)) !important;
   font-weight: 700;
 }
 
@@ -352,7 +530,7 @@ html[data-button-style='neon'] .el-button--primary {
 }
 
 .el-table__row:hover > td.el-table__cell {
-  background: rgba(255, 255, 255, 0.045) !important;
+  background: var(--v2-surface-hover, rgba(255, 255, 255, 0.045)) !important;
 }
 
 .el-pagination {
@@ -363,7 +541,8 @@ html[data-button-style='neon'] .el-button--primary {
 .el-pagination .btn-next,
 .el-pagination .el-pager li {
   border-radius: 10px !important;
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: var(--v2-surface-soft, rgba(255, 255, 255, 0.04)) !important;
+  color: var(--v2-text-body, #f3ead8);
 }
 
 /* Unified dialog system */
@@ -519,4 +698,58 @@ html[data-button-style='neon'] .el-button--primary {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* ================================================================
+   用户下拉菜单（前台 LayoutV2 与后台 AdminLayout 共用）
+   ----------------------------------------------------------------
+   Element Plus 的 popper 会 teleport 到 body，scoped 样式加不上 data-v，
+   所以必须放全局。两个布局里各自定义一遍会互相覆盖，统一收在这里。
+
+   底色和文字都引用同一套 --v2-* 变量，深浅主题切换时永远同进退，
+   不会出现"深底深字"看不清的情况。
+   ================================================================ */
+.v2-user-dropdown {
+  border: 1px solid var(--v2-border-soft, rgba(238, 226, 202, 0.16)) !important;
+  background: var(--v2-surface-strong, rgba(38, 33, 26, 0.96)) !important;
+  box-shadow: var(--v2-shadow, 0 18px 60px rgba(0, 0, 0, 0.42)) !important;
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  padding: 0;
+
+  --el-dropdown-menu-box-shadow: none;
+  --el-dropdown-menuItem-hover-fill: var(--v2-surface-hover, rgba(246, 240, 226, 0.085));
+  --el-dropdown-menuItem-hover-color: var(--v2-text-strong, #f6f0e2);
+  --el-dropdown-menuItem-divided-color: var(--v2-divider, rgba(238, 226, 202, 0.1));
+  --el-text-color-primary: var(--v2-text-strong, #f6f0e2);
+}
+
+.v2-user-dropdown .el-dropdown-menu {
+  background: transparent !important;
+  padding: 8px 6px !important;
+}
+
+.v2-user-dropdown .el-dropdown-menu__item {
+  color: var(--v2-text-strong, #f6f0e2) !important;
+  font-weight: 600;
+  font-size: 13px;
+  border-radius: 8px;
+  padding: 9px 14px;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.v2-user-dropdown .el-dropdown-menu__item:not(.is-disabled):hover,
+.v2-user-dropdown .el-dropdown-menu__item:not(.is-disabled):focus {
+  background: var(--v2-surface-hover, rgba(246, 240, 226, 0.085)) !important;
+  color: var(--v2-text-strong, #ffffff) !important;
+}
+
+.v2-user-dropdown .el-dropdown-menu__item--divided {
+  margin-top: 6px;
+  border-top: 1px solid var(--v2-divider, rgba(238, 226, 202, 0.1));
+}
+
+/* Element Plus 默认会给 divided 项加一条伪元素分隔线，这里已有 border-top，去掉避免双线 */
+.v2-user-dropdown .el-dropdown-menu__item--divided::before {
+  display: none !important;
 }

@@ -21,6 +21,14 @@
           </template>
         </el-table-column>
         <el-table-column prop="questionText" label="问题" min-width="200" show-overflow-tooltip />
+        <!-- 展示场景：区分 AI 问答页与模型详情页悬浮问答，避免两处混用同一批问题 -->
+        <el-table-column prop="scene" label="展示位置" width="130">
+          <template #default="scope">
+            <el-tag size="small" :type="sceneTagType(scope.row.scene)">
+              {{ sceneLabel(scope.row.scene) }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="clickCount" label="点击次数" width="100" />
         <el-table-column prop="sortOrder" label="排序" width="100" />
         <el-table-column prop="enabled" label="状态" width="100">
@@ -91,6 +99,17 @@
         <el-form-item label="问题" prop="questionText">
           <el-input v-model="form.questionText" placeholder="请输入问题" />
         </el-form-item>
+        <!-- 展示位置：决定这条问题出现在 AI 问答页还是模型详情页悬浮问答 -->
+        <el-form-item label="展示位置" prop="scene">
+          <el-radio-group v-model="form.scene">
+            <el-radio-button label="chat">AI 问答页</el-radio-button>
+            <el-radio-button label="model">模型详情页</el-radio-button>
+            <el-radio-button label="all">两处都显示</el-radio-button>
+          </el-radio-group>
+          <div class="scene-tip">
+            AI 问答页＝左侧菜单进入的独立页面；模型详情页＝右下角悬浮问答。
+          </div>
+        </el-form-item>
         <el-form-item label="排序" prop="sortOrder">
           <el-input-number v-model="form.sortOrder" :min="0" :max="999" />
         </el-form-item>
@@ -130,11 +149,25 @@ const form = reactive({
   modelId: null,
   questionText: '',
   sortOrder: 0,
-  enabled: true
+  enabled: true,
+  scene: 'all'
 })
 
 const rules = {
   questionText: [{ required: true, message: '请输入问题', trigger: 'blur' }]
+}
+
+/** 展示位置的显示文案与配色 */
+const sceneLabel = (scene) => {
+  if (scene === 'chat') return 'AI 问答页'
+  if (scene === 'model') return '模型详情页'
+  return '两处都显示'
+}
+
+const sceneTagType = (scene) => {
+  if (scene === 'chat') return 'success'
+  if (scene === 'model') return 'warning'
+  return 'info'
 }
 
 onMounted(() => {
@@ -221,7 +254,8 @@ const showAddDialog = () => {
     modelId: null,
     questionText: '',
     sortOrder: 0,
-    enabled: true
+    enabled: true,
+    scene: 'all'
   })
   dialogVisible.value = true
 }
@@ -235,7 +269,8 @@ const editQuestion = (question) => {
     modelId: question.modelId,
     questionText: question.questionText,
     sortOrder: question.sortOrder,
-    enabled: question.enabled
+    enabled: question.enabled,
+    scene: question.scene || 'all'
   })
   dialogVisible.value = true
 }
@@ -252,7 +287,8 @@ const submitForm = async () => {
         modelId: form.modelId || null,
         questionText: form.questionText,
         sortOrder: form.sortOrder,
-        enabled: form.enabled
+        enabled: form.enabled,
+        scene: form.scene || 'all'
       }
 
       try {
@@ -281,7 +317,8 @@ const toggleEnabled = async (question) => {
       questionText: question.questionText,
       answerText: question.answerText,
       sortOrder: question.sortOrder,
-      enabled: question.enabled
+      enabled: question.enabled,
+      scene: question.scene || 'all'
     })
     ElMessage.success('更新成功')
   } catch (error) {
@@ -309,6 +346,15 @@ const deleteQuestion = async (question) => {
     display: flex;
     justify-content: space-between;
     align-items: center;
+  }
+
+  /* 展示位置单选下的说明文字 */
+  .scene-tip {
+    width: 100%;
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--v2-text-weak);
   }
 }
 </style>

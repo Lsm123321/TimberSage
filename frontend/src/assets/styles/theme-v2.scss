@@ -1,140 +1,12 @@
+/*
+  冷蓝白（原浅色主题的配色，现在作为"切换"目标）。
+  默认主题是暖宣纸（v2-light）；用户点左下角按钮后切到这里。
+
+  保留原有的冷调：淡蓝底 #eef3fb、墨蓝字 #1b2b42、赭金强调 #8f6a22。
+  注意这段是原样搬过来的，只把选择器从 v2-light 改成了 v2，
+  变量和规则一条没动，保证观感跟以前完全一致。
+*/
 html[data-theme='v2'] {
-  /* 水墨风：墨黑底 + 宣纸白字 + 暖金点缀 */
-  --v2-bg-0: #04060b; /* 墨色底 */
-  --v2-bg-1: rgba(8, 12, 20, 0.90);
-  --v2-glass: rgba(255, 255, 255, 0.072);
-  --v2-glass-strong: rgba(255, 255, 255, 0.106);
-  --v2-border: rgba(255, 255, 255, 0.16);
-  --v2-text: rgba(252, 250, 246, 0.98);
-  --v2-text-dim: rgba(248, 245, 238, 0.84);
-  --v2-muted: rgba(241, 236, 226, 0.72);
-  --v2-gold: #d2b06f; /* 暖金更“器物感” */
-  --v2-vermillion: #a93a30; /* 朱砂更内敛 */
-  --v2-cyan: #5fc7b8; /* 青釉绿（由偏蓝改为偏青绿） */
-  --v2-shadow: 0 22px 70px rgba(0, 0, 0, 0.52);
-  --v2-shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.25);
-  --v2-radius-xl: 26px;
-  --v2-radius-lg: 18px;
-  --v2-radius-md: 14px;
-  --v2-ease: cubic-bezier(.2,.9,.2,1);
-
-  /* V2 下 Element Plus 主色同步为暖金 */
-  --el-color-primary: var(--v2-gold);
-  --el-color-primary-light-3: #dcc191;
-  --el-color-primary-light-5: #e6d1ae;
-  --el-color-primary-light-7: #f0e2cb;
-  --el-color-primary-light-8: #f6ede0;
-  --el-color-primary-light-9: #fbf6ee;
-  --el-color-primary-dark-2: #b48f52;
-}
-
-html[data-theme='v2'] body {
-  background:
-    radial-gradient(1200px 820px at 18% 12%, rgba(210, 176, 111, 0.24), transparent 58%),
-    radial-gradient(920px 740px at 82% 10%, rgba(169, 58, 48, 0.18), transparent 58%),
-    radial-gradient(980px 980px at 60% 84%, rgba(95, 199, 184, 0.16), transparent 62%),
-    linear-gradient(165deg, #02040a 0%, #060914 42%, #070c18 100%);
-  color: var(--v2-text);
-}
-
-html[data-theme='v2'] body::before {
-  content: '';
-  position: fixed;
-  inset: -20%;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.08), transparent 45%),
-    radial-gradient(circle at 70% 15%, rgba(255, 255, 255, 0.05), transparent 55%),
-    repeating-linear-gradient(
-      120deg,
-      transparent 0,
-      transparent 56px,
-      rgba(210, 176, 111, 0.018) 56px,
-      rgba(210, 176, 111, 0.018) 57px
-    );
-  opacity: 0.55;
-  filter: blur(0.2px);
-  transform: translate3d(0, 0, 0);
-  animation: v2-slow-drift 18s var(--v2-ease) infinite alternate;
-}
-
-html[data-theme='v2'] body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.020), rgba(255, 255, 255, 0.020)),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
-  mix-blend-mode: overlay;
-  opacity: 0.16;
-}
-
-@keyframes v2-slow-drift {
-  0% { transform: translate3d(-0.6%, -0.8%, 0) scale(1.02); }
-  100% { transform: translate3d(0.8%, 0.6%, 0) scale(1.05); }
-}
-
-@keyframes v2-float {
-  0% { transform: translate3d(0, 0, 0); }
-  100% { transform: translate3d(0, -10px, 0); }
-}
-
-@keyframes v2-glow {
-  0% { filter: drop-shadow(0 0 0 rgba(214, 183, 122, 0)); }
-  100% { filter: drop-shadow(0 10px 30px rgba(214, 183, 122, 0.18)); }
-}
-
-@keyframes v2-page-in {
-  0% { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.995); }
-  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-}
-
-@keyframes v2-page-out {
-  0% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-  100% { opacity: 0; transform: translate3d(0, 6px, 0) scale(0.996); }
-}
-
-html[data-theme='v2'] .v2-glass {
-  background: var(--v2-glass);
-  border: 1px solid var(--v2-border);
-  box-shadow: var(--v2-shadow-soft);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  backdrop-filter: blur(18px) saturate(140%);
-  border-radius: var(--v2-radius-xl);
-}
-
-html[data-theme='v2'] .v2-glass-strong {
-  background: var(--v2-glass-strong);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: var(--v2-shadow);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  backdrop-filter: blur(20px) saturate(160%);
-  border-radius: var(--v2-radius-xl);
-}
-
-/* 提升表单与菜单中的文本可读性 */
-html[data-theme='v2'] .el-input__inner,
-html[data-theme='v2'] .el-textarea__inner,
-html[data-theme='v2'] .el-select__placeholder,
-html[data-theme='v2'] .el-input__placeholder,
-html[data-theme='v2'] .el-menu-item,
-html[data-theme='v2'] .el-dropdown-link,
-html[data-theme='v2'] .el-dropdown-menu__item {
-  color: var(--v2-text-dim) !important;
-}
-
-html[data-theme='v2'] .el-input__inner::placeholder,
-html[data-theme='v2'] .el-textarea__inner::placeholder {
-  color: var(--v2-muted) !important;
-}
-
-html[data-theme='v2'] .el-menu-item.is-active,
-html[data-theme='v2'] .el-dropdown-menu__item:not(.is-disabled):hover {
-  color: var(--v2-text) !important;
-}
-
-html[data-theme='v2-light'] {
   --v2-bg-0: #eef3fb;
   --v2-bg-1: rgba(255, 255, 255, 0.88);
   --v2-glass: rgba(255, 255, 255, 0.72);
@@ -143,7 +15,7 @@ html[data-theme='v2-light'] {
   --v2-text: rgba(27, 43, 66, 0.96);
   --v2-text-dim: rgba(42, 58, 84, 0.82);
   --v2-muted: rgba(68, 84, 108, 0.72);
-  --v2-gold: #b8904e;
+  --v2-gold: #8f6a22;
   --v2-vermillion: #a84d43;
   --v2-cyan: #3f98c4;
   --v2-shadow: 0 20px 48px rgba(19, 39, 74, 0.16);
@@ -153,6 +25,72 @@ html[data-theme='v2-light'] {
   --v2-radius-md: 14px;
   --v2-ease: cubic-bezier(.2,.9,.2,1);
 
+  /* 浅色主题的语义面板：宣纸白 + 冷墨字，配深金强调 */
+  --v2-surface: rgba(255, 255, 255, 0.82);
+  --v2-surface-strong: rgba(255, 255, 255, 0.94);
+  --v2-surface-soft: rgba(24, 52, 88, 0.045);
+  --v2-surface-hover: rgba(24, 52, 88, 0.08);
+  --v2-surface-input: rgba(255, 255, 255, 0.92);
+  --v2-border-soft: rgba(24, 52, 88, 0.14);
+  --v2-divider: rgba(24, 52, 88, 0.10);
+  --v2-text-strong: #1b2b42;
+  --v2-text-body: rgba(31, 48, 74, 0.92);
+  /* 次级文字压深一点：白底上原来的 0.68 透明度只有 3.6:1，注释类文字偏虚 */
+  --v2-text-weak: rgba(45, 62, 88, 0.82);
+  --v2-chip-bg: rgba(184, 144, 78, 0.14);
+  --v2-chip-border: rgba(143, 106, 34, 0.42);
+  --v2-chip-text: #74531a;
+  /*
+    浅色调的金压到 #8f6a22 后，无论"金底白字"还是"白底金字"都在 4.8:1 左右，
+    所以这里 accent-contrast 用奶白；深色主题的金偏亮，仍用墨色字。
+  */
+  --v2-accent-contrast: #fffaf1;
+  --v2-inset-line: rgba(255, 255, 255, 0.75);
+
+  --v2-ok-bg: rgba(58, 150, 96, 0.12);
+  --v2-ok-border: rgba(58, 150, 96, 0.38);
+  --v2-ok-text: #276749;
+  --v2-warn-bg: rgba(184, 144, 78, 0.14);
+  --v2-warn-border: rgba(184, 144, 78, 0.40);
+  --v2-warn-text: #74531a;
+  --v2-danger-bg: rgba(178, 62, 62, 0.12);
+  --v2-danger-border: rgba(178, 62, 62, 0.36);
+  --v2-danger-text: #9c2f2f;
+  --v2-info-bg: rgba(24, 52, 88, 0.06);
+  --v2-info-border: rgba(24, 52, 88, 0.16);
+  --v2-info-text: #34435a;
+
+  --v2-map-bg: linear-gradient(150deg, #eef4fb 0%, #e2ecf7 100%);
+  --v2-map-area: rgba(214, 230, 244, 0.92);
+  --v2-map-area-hover: rgba(190, 218, 240, 0.96);
+  --v2-map-border: rgba(70, 128, 172, 0.72);
+  --v2-map-border-hover: rgba(38, 96, 142, 0.92);
+  --v2-map-glow: rgba(70, 128, 172, 0.18);
+  --v2-map-label-bg: rgba(255, 255, 255, 0.88);
+  --v2-map-label-text: #1f3a54;
+  --v2-map-link: rgba(70, 128, 172, 0.45);
+  --v2-map-compliance: rgba(38, 58, 84, 0.78);
+  --v2-graph-base-rgb: 253, 250, 244;
+
+  --v2-chat-window: linear-gradient(180deg, #fdfcfa 0%, #f5f2ec 100%);
+  --v2-chat-header: linear-gradient(130deg, #f0e6d4 0%, #e7dcc8 55%, #efe6d6 100%);
+  --v2-chat-header-text: #3a2c14;
+  /* 副标题在米色头上要够深，0.72 的结果只有 4.2:1 */
+  --v2-chat-header-sub: rgba(58, 44, 20, 0.86);
+  --v2-chat-body: radial-gradient(circle at 50% -10%, rgba(184, 144, 78, 0.10), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(250, 247, 242, 0.98));
+  --v2-chat-ai-bg: #ffffff;
+  --v2-chat-ai-text: #24313f;
+  --v2-chat-ai-border: rgba(24, 52, 88, 0.12);
+  --v2-chat-user-bg: linear-gradient(135deg, #c9a468, #a9823f);
+  --v2-chat-user-text: #fffaf1;
+  --v2-chat-input-bg: rgba(255, 255, 255, 0.94);
+  --v2-chat-border: rgba(24, 52, 88, 0.12);
+  --v2-chat-preset-bg: rgba(24, 52, 88, 0.05);
+  --v2-chat-preset-border: rgba(24, 52, 88, 0.14);
+  --v2-chat-preset-text: #34435a;
+  --v2-chat-preset-hover: rgba(184, 144, 78, 0.18);
+
   --el-color-primary: var(--v2-gold);
   --el-color-primary-light-3: #cfac77;
   --el-color-primary-light-5: #dcc298;
@@ -160,9 +98,28 @@ html[data-theme='v2-light'] {
   --el-color-primary-light-8: #f3e9d7;
   --el-color-primary-light-9: #faf5eb;
   --el-color-primary-dark-2: #9d7840;
+
+  /* 浅色下 Element Plus 的底色/文字/描边整套翻转，否则下拉、弹层、表格仍是黑底 */
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #eef3fb;
+  --el-bg-color-overlay: #ffffff;
+  --el-text-color-primary: #1b2b42;
+  --el-text-color-regular: rgba(31, 48, 74, 0.88);
+  --el-text-color-secondary: rgba(61, 79, 106, 0.72);
+  --el-text-color-placeholder: rgba(88, 105, 130, 0.60);
+  --el-text-color-disabled: rgba(88, 105, 130, 0.42);
+  --el-border-color: rgba(24, 52, 88, 0.20);
+  --el-border-color-light: rgba(24, 52, 88, 0.16);
+  --el-border-color-lighter: rgba(24, 52, 88, 0.12);
+  --el-border-color-extra-light: rgba(24, 52, 88, 0.08);
+  --el-fill-color: rgba(24, 52, 88, 0.07);
+  --el-fill-color-light: rgba(24, 52, 88, 0.05);
+  --el-fill-color-lighter: rgba(24, 52, 88, 0.035);
+  --el-fill-color-blank: rgba(255, 255, 255, 0.86);
+  --el-mask-color: rgba(233, 240, 249, 0.78);
 }
 
-html[data-theme='v2-light'] body {
+html[data-theme='v2'] body {
   background:
     radial-gradient(1200px 820px at 18% 12%, rgba(184, 144, 78, 0.16), transparent 58%),
     radial-gradient(920px 740px at 82% 10%, rgba(63, 152, 196, 0.14), transparent 58%),
@@ -171,7 +128,7 @@ html[data-theme='v2-light'] body {
   color: var(--v2-text);
 }
 
-html[data-theme='v2-light'] body::before {
+html[data-theme='v2'] body::before {
   content: '';
   position: fixed;
   inset: -20%;
@@ -190,6 +147,224 @@ html[data-theme='v2-light'] body::before {
   filter: blur(0.2px);
   transform: translate3d(0, 0, 0);
   animation: v2-slow-drift 18s var(--v2-ease) infinite alternate;
+}
+
+html[data-theme='v2'] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.04)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+  opacity: 0.07;
+}
+
+html[data-theme='v2'] .v2-glass {
+  background: var(--v2-glass);
+  border: 1px solid var(--v2-border);
+  box-shadow: var(--v2-shadow-soft);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  backdrop-filter: blur(16px) saturate(120%);
+  border-radius: var(--v2-radius-xl);
+}
+
+html[data-theme='v2'] .v2-glass-strong {
+  background: var(--v2-glass-strong);
+  border: 1px solid rgba(24, 52, 88, 0.14);
+  box-shadow: var(--v2-shadow);
+  -webkit-backdrop-filter: blur(18px) saturate(130%);
+  backdrop-filter: blur(18px) saturate(130%);
+  border-radius: var(--v2-radius-xl);
+}
+
+html[data-theme='v2'] .el-input__inner,
+html[data-theme='v2'] .el-textarea__inner,
+html[data-theme='v2'] .el-select__placeholder,
+html[data-theme='v2'] .el-input__placeholder,
+html[data-theme='v2'] .el-menu-item,
+html[data-theme='v2'] .el-dropdown-link,
+html[data-theme='v2'] .el-dropdown-menu__item {
+  color: var(--v2-text-dim) !important;
+}
+
+html[data-theme='v2'] .el-input__inner::placeholder,
+html[data-theme='v2'] .el-textarea__inner::placeholder {
+  color: var(--v2-muted) !important;
+}
+
+/*
+  浅色主题的主按钮同样是暖金底，统一用奶白字（金压深后约 4.8:1）。
+  禁用态和朴素按钮（plain）底色是浅的，必须排除，否则会变成白字白底。
+*/
+html[data-theme='v2'] .el-button--primary:not(.is-text):not(.is-link):not(.is-plain):not(.is-disabled) {
+  color: var(--v2-accent-contrast) !important;
+}
+
+/*
+  暖宣纸水墨（默认主题）。
+
+  默认值在 useUiPreferences 里设为 'light'，映射到 data-theme='v2-light'。
+  纸本米底 + 墨色字 + 赭金/朱砂/黛青三色，古籍绢画的调性。
+*/
+html[data-theme='v2-light'] {
+  /*
+    宣纸水墨（浅色）。
+    原来这套是冷蓝白（#eef3fb + 蓝灰字），看着像通用后台模板，
+    跟"古建筑"这个主题没有关系，而且大块冷色在屏幕上偏刺眼。
+
+    改成真正的国风纸本：
+      底 = 宣纸米（暖白，带一点黄），不是纯白也不是冷蓝
+      字 = 墨色梯度（浓墨/中墨/淡墨），不用纯黑
+      强调 = 赭金（匾额）+ 朱砂（印章）+ 黛青（远山）
+    三色都压了饱和度，避免像 UI 主题，而像旧绢上的颜色。
+  */
+  --v2-bg-0: #f7f2e6;                      /* 宣纸米：整个页面的底色 */
+  --v2-bg-1: rgba(253, 250, 243, 0.92);    /* 叠纸层，比底色再亮一档 */
+  --v2-glass: rgba(255, 252, 246, 0.72);
+  --v2-glass-strong: rgba(255, 253, 248, 0.9);
+  --v2-border: rgba(122, 96, 58, 0.2);
+  --v2-text: rgba(42, 36, 25, 0.95);       /* 浓墨 */
+  --v2-text-dim: rgba(62, 52, 36, 0.82);   /* 中墨 */
+  --v2-muted: rgba(98, 82, 58, 0.66);      /* 淡墨 */
+  --v2-gold: #a8813c;                      /* 赭金：压暗一点，白底上够深 */
+  --v2-vermillion: #a8473a;                /* 朱砂 */
+  --v2-cyan: #5b8177;                      /* 黛青：灰绿，像远山 */
+  --v2-shadow: 0 18px 44px rgba(86, 66, 36, 0.13);
+  --v2-shadow-soft: 0 8px 22px rgba(86, 66, 36, 0.09);
+  --v2-radius-xl: 26px;
+  --v2-radius-lg: 18px;
+  --v2-radius-md: 14px;
+  --v2-ease: cubic-bezier(.2,.9,.2,1);
+
+  /* 语义面板：纸白面板 + 墨字 */
+  --v2-surface: rgba(255, 252, 246, 0.86);
+  --v2-surface-strong: rgba(255, 253, 249, 0.96);
+  --v2-surface-soft: rgba(122, 96, 58, 0.045);
+  --v2-surface-hover: rgba(168, 129, 60, 0.1);
+  --v2-surface-input: rgba(255, 253, 249, 0.94);
+  --v2-border-soft: rgba(122, 96, 58, 0.17);
+  --v2-divider: rgba(122, 96, 58, 0.12);
+  --v2-text-strong: #2a2419;
+  --v2-text-body: rgba(52, 43, 30, 0.9);
+  /* 弱化文字也要保证 4.5:1，白底上不能用太浅的灰 */
+  --v2-text-weak: rgba(88, 72, 48, 0.82);
+  --v2-chip-bg: rgba(168, 129, 60, 0.12);
+  --v2-chip-border: rgba(140, 105, 46, 0.4);
+  --v2-chip-text: #7a5716;
+  --v2-accent-contrast: #fffdf8;
+  --v2-inset-line: rgba(255, 253, 248, 0.8);
+
+  --v2-ok-bg: rgba(74, 122, 74, 0.12);
+  --v2-ok-border: rgba(74, 122, 74, 0.36);
+  --v2-ok-text: #3a6138;
+  --v2-warn-bg: rgba(168, 129, 60, 0.13);
+  --v2-warn-border: rgba(168, 129, 60, 0.38);
+  --v2-warn-text: #7a5716;
+  --v2-danger-bg: rgba(168, 71, 58, 0.11);
+  --v2-danger-border: rgba(168, 71, 58, 0.34);
+  --v2-danger-text: #94372a;
+  --v2-info-bg: rgba(122, 96, 58, 0.06);
+  --v2-info-border: rgba(122, 96, 58, 0.17);
+  --v2-info-text: #4a3d29;
+
+  /* 舆图：宣纸底 + 黛青疆域 + 赭金边界 */
+  --v2-map-bg: linear-gradient(150deg, #faf6ec 0%, #f4eee0 100%);
+  --v2-map-area: rgba(226, 219, 202, 0.92);
+  --v2-map-area-hover: rgba(210, 199, 176, 0.96);
+  --v2-map-border: rgba(140, 105, 46, 0.66);
+  --v2-map-border-hover: rgba(110, 80, 32, 0.9);
+  --v2-map-glow: rgba(140, 105, 46, 0.16);
+  --v2-map-label-bg: rgba(255, 253, 249, 0.9);
+  --v2-map-label-text: #3e3320;
+  --v2-map-link: rgba(91, 129, 119, 0.45);
+  --v2-map-compliance: rgba(70, 56, 36, 0.78);
+  --v2-graph-base-rgb: 253, 250, 244;
+
+  /* 问答窗口：纸面 + 赭金描边 */
+  --v2-chat-window: linear-gradient(180deg, #fffdf8 0%, #faf5ea 100%);
+  --v2-chat-header: linear-gradient(130deg, #f2e8d3 0%, #eadfc7 55%, #f1e8d6 100%);
+  --v2-chat-header-text: #3a2c14;
+  --v2-chat-header-sub: rgba(58, 44, 20, 0.82);
+  --v2-chat-body: radial-gradient(circle at 50% -10%, rgba(168, 129, 60, 0.09), transparent 42%),
+    linear-gradient(180deg, rgba(255, 253, 249, 0.97), rgba(249, 244, 233, 0.98));
+  --v2-chat-ai-bg: #fffefb;
+  --v2-chat-ai-text: #2f2820;
+  --v2-chat-ai-border: rgba(122, 96, 58, 0.14);
+  --v2-chat-user-bg: linear-gradient(135deg, #c4a067, #a8813c);
+  --v2-chat-user-text: #fffdf8;
+  --v2-chat-input-bg: rgba(255, 253, 249, 0.96);
+  --v2-chat-border: rgba(122, 96, 58, 0.14);
+  --v2-chat-preset-bg: rgba(122, 96, 58, 0.05);
+  --v2-chat-preset-border: rgba(122, 96, 58, 0.15);
+  --v2-chat-preset-text: #4a3d29;
+  --v2-chat-preset-hover: rgba(168, 129, 60, 0.16);
+
+  --el-color-primary: var(--v2-gold);
+  --el-color-primary-light-3: #b89a63;
+  --el-color-primary-light-5: #c9b184;
+  --el-color-primary-light-7: #ddcaa6;
+  --el-color-primary-light-8: #e9dbc0;
+  --el-color-primary-light-9: #f5efe1;
+  --el-color-primary-dark-2: #8a6528;
+
+  /* Element Plus 整块翻转成纸本配色 */
+  --el-bg-color: #fffdf8;
+  --el-bg-color-page: #f7f2e6;
+  --el-bg-color-overlay: #fffdf8;
+  --el-text-color-primary: #2a2419;
+  --el-text-color-regular: rgba(52, 43, 30, 0.88);
+  --el-text-color-secondary: rgba(88, 72, 48, 0.72);
+  --el-text-color-placeholder: rgba(120, 102, 74, 0.58);
+  --el-text-color-disabled: rgba(120, 102, 74, 0.4);
+  --el-border-color: rgba(122, 96, 58, 0.22);
+  --el-border-color-light: rgba(122, 96, 58, 0.17);
+  --el-border-color-lighter: rgba(122, 96, 58, 0.13);
+  --el-border-color-extra-light: rgba(122, 96, 58, 0.09);
+  --el-fill-color: rgba(122, 96, 58, 0.08);
+  --el-fill-color-light: rgba(122, 96, 58, 0.055);
+  --el-fill-color-lighter: rgba(122, 96, 58, 0.035);
+  --el-fill-color-blank: #fffdf8;
+  --el-mask-color: rgba(60, 48, 30, 0.44);
+}
+
+html[data-theme='v2-light'] body {
+  /*
+    宣纸底：三层暖色晕染叠在米黄渐变上。
+    三处色斑对应赭金（左上）、朱砂（右上）、黛青（底部），
+    是水墨画里常见的"三远"层次，不是随便撒的彩色光斑。
+  */
+  background:
+    radial-gradient(1200px 820px at 16% 8%, rgba(196, 160, 92, 0.13), transparent 58%),
+    radial-gradient(940px 760px at 84% 10%, rgba(168, 71, 58, 0.075), transparent 58%),
+    radial-gradient(1000px 980px at 56% 88%, rgba(91, 129, 119, 0.09), transparent 62%),
+    linear-gradient(168deg, #faf6ec 0%, #f7f2e6 44%, #f2ecdf 100%);
+  color: var(--v2-text);
+  /* 正文默认字距略放开一点，中文在浅色底上更呼吸 */
+  letter-spacing: 0.01em;
+}
+
+html[data-theme='v2-light'] body::before {
+  /* 纸纤维：极淡的斜向细纹，让大面积浅色不发空 */
+  content: '';
+  position: fixed;
+  inset: -20%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.55), transparent 45%),
+    radial-gradient(circle at 70% 15%, rgba(255, 255, 255, 0.32), transparent 55%),
+    repeating-linear-gradient(
+      118deg,
+      transparent 0,
+      transparent 58px,
+      rgba(150, 118, 64, 0.035) 58px,
+      rgba(150, 118, 64, 0.035) 59px
+    );
+  opacity: 0.6;
+  filter: blur(0.2px);
+  transform: translate3d(0, 0, 0);
+  animation: v2-slow-drift 20s var(--v2-ease) infinite alternate;
 }
 
 html[data-theme='v2-light'] body::after {
@@ -215,7 +390,7 @@ html[data-theme='v2-light'] .v2-glass {
 
 html[data-theme='v2-light'] .v2-glass-strong {
   background: var(--v2-glass-strong);
-  border: 1px solid rgba(24, 52, 88, 0.14);
+  border: 1px solid var(--v2-border-soft);
   box-shadow: var(--v2-shadow);
   -webkit-backdrop-filter: blur(18px) saturate(130%);
   backdrop-filter: blur(18px) saturate(130%);
@@ -235,5 +410,13 @@ html[data-theme='v2-light'] .el-dropdown-menu__item {
 html[data-theme='v2-light'] .el-input__inner::placeholder,
 html[data-theme='v2-light'] .el-textarea__inner::placeholder {
   color: var(--v2-muted) !important;
+}
+
+/*
+  浅色主题的主按钮同样是暖金底，统一用奶白字（金压深后约 4.8:1）。
+  禁用态和朴素按钮（plain）底色是浅的，必须排除，否则会变成白字白底。
+*/
+html[data-theme='v2-light'] .el-button--primary:not(.is-text):not(.is-link):not(.is-plain):not(.is-disabled) {
+  color: var(--v2-accent-contrast) !important;
 }
 

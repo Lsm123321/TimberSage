@@ -179,19 +179,19 @@ onMounted(() => {
     .title {
       font-size: 16px;
       font-weight: 800;
-      color: rgba(255, 255, 255, 0.92);
+      color: var(--v2-text-strong);
     }
     .desc {
       margin-top: 6px;
       font-size: 13px;
-      color: rgba(255, 255, 255, 0.72);
+      color: var(--v2-text-weak);
     }
   }
 
   .v2-card {
-    border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.06);
+    border-radius: var(--v2-radius-lg);
+    border: 1px solid var(--v2-border-soft);
+    background: var(--v2-surface);
   }
 
   .toolbar {

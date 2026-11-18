@@ -378,6 +378,54 @@
           </template>
         </el-dialog>
 
+        <!--
+          纠错记录：只展示管理员已采纳的条目。
+          待审核的提交不会出现在这里，只在自己的「我的纠错提交」里可见，
+          这样未经核实的内容不会先被别人看到。
+        -->
+        <div class="correction-records" v-if="publishedFeedbacks.length > 0 || myFeedbacks.length > 0">
+          <div class="records-head">
+            <h3>纠错记录</h3>
+            <span class="records-hint">仅在管理员审核通过后公开展示</span>
+          </div>
+
+          <div class="record-group" v-if="myFeedbacks.length > 0">
+            <div class="group-title">我的提交</div>
+            <div
+              v-for="item in myFeedbacks"
+              :key="`mine-${item.id}`"
+              class="record-item is-mine"
+            >
+              <div class="record-top">
+                <span class="record-type">{{ item.errorType }}</span>
+                <span class="record-status" :class="`status-${item.status}`">{{ item.statusText }}</span>
+              </div>
+              <p class="record-desc">{{ item.description }}</p>
+              <div class="record-remark" v-if="item.adminRemark">
+                <strong>管理员备注：</strong>{{ item.adminRemark }}
+              </div>
+            </div>
+          </div>
+
+          <div class="record-group" v-if="publishedFeedbacks.length > 0">
+            <div class="group-title">已采纳的纠错</div>
+            <div
+              v-for="item in publishedFeedbacks"
+              :key="`pub-${item.id}`"
+              class="record-item"
+            >
+              <div class="record-top">
+                <span class="record-type">{{ item.errorType }}</span>
+                <span class="record-author">{{ item.username }}</span>
+              </div>
+              <p class="record-desc">{{ item.description }}</p>
+              <div class="record-remark" v-if="item.adminRemark">
+                <strong>处理说明：</strong>{{ item.adminRemark }}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <MaterialPanel
           ref="materialPanelRef"
           :model-id="modelId"
@@ -416,6 +464,7 @@ import ChatFloat from '@/components/ChatFloat.vue'
 import { ElMessage } from 'element-plus'
 import { Back, Refresh, FullScreen, Star, CaretTop, Download, View, Loading, EditPen, Expand, Microphone } from '@element-plus/icons-vue'
 import { useUiPreferences } from '@/composables/useUiPreferences'
+import { openLoginGuide } from '@/composables/useLoginGuide'
 import request from '@/utils/request'
 import {
   PART_FLOAT_ANCHOR_GAP,
@@ -513,6 +562,35 @@ const materialPanelRef = ref(null)
 const correctionVisible = ref(false)
 const correctionType = ref('')
 const correctionDesc = ref('')
+// 纠错记录：已采纳的公开记录 + 本人的全部提交（含待审核）
+const publishedFeedbacks = ref([])
+const myFeedbacks = ref([])
+
+/**
+ * 纠错记录有两条来源，权限不同：
+ * 1) 公开列表只拿 status=1（管理员已采纳），其他人才能看到；
+ * 2) 本人的提交单独拉一次，待审核状态只有自己可见。
+ */
+const loadCorrectionRecords = async () => {
+  try {
+    const pub = await request.get(`/models/${modelId.value}/feedback`, { params: { page: 1, pageSize: 20 } })
+    publishedFeedbacks.value = pub.data?.content || []
+  } catch (error) {
+    // 列表拉不到不影响页面主体，静默处理
+    publishedFeedbacks.value = []
+  }
+
+  if (!token.value) {
+    myFeedbacks.value = []
+    return
+  }
+  try {
+    const mine = await request.get(`/models/${modelId.value}/feedback/mine`, { params: { page: 1, pageSize: 20 } })
+    myFeedbacks.value = mine.data?.content || []
+  } catch (error) {
+    myFeedbacks.value = []
+  }
+}
 const correctionSubmitting = ref(false)
 
 const exploded = ref(false)
@@ -985,6 +1063,8 @@ const defaultCameraTarget = computed(() => normalizeCameraVector(model.value?.de
 onMounted(async () => {
   document.addEventListener('fullscreenchange', onViewerFullscreenChange)
   await loadModelDetail()
+  // 纠错记录独立加载，失败也不该拖住模型主体的渲染
+  await loadCorrectionRecords()
 })
 
 const loadModelDetail = async () => {
@@ -1105,8 +1185,7 @@ const toggleFullscreen = () => {
 
 const handleFavorite = async () => {
   if (!token.value) {
-    ElMessage.warning(t('loginFirst'))
-    router.push('/login')
+    openLoginGuide('收藏')
     return
   }
 
@@ -1129,8 +1208,7 @@ const handleFavorite = async () => {
 
 const handleLike = async () => {
   if (!token.value) {
-    ElMessage.warning(t('loginFirst'))
-    router.push('/login')
+    openLoginGuide('点赞')
     return
   }
 
@@ -1183,8 +1261,7 @@ const handleDownload = async () => {
     ElMessage.success(t('downloadStarted'))
   } catch (error) {
     if (error.message?.includes('登录')) {
-      ElMessage.warning(t('loginFirst'))
-      router.push('/login')
+      openLoginGuide('下载')
     } else {
       ElMessage.error(t('getDownloadFailed'))
     }
@@ -1193,8 +1270,7 @@ const handleDownload = async () => {
 
 const openCorrectionDialog = () => {
   if (!token.value) {
-    ElMessage.warning(t('loginFirst'))
-    router.push('/login')
+    openLoginGuide('纠错')
     return
   }
   correctionType.value = ''
@@ -1204,8 +1280,7 @@ const openCorrectionDialog = () => {
 
 const submitCorrection = async () => {
   if (!token.value) {
-    ElMessage.warning(t('loginFirst'))
-    router.push('/login')
+    openLoginGuide('纠错')
     return
   }
   if (!correctionType.value) {
@@ -1226,6 +1301,8 @@ const submitCorrection = async () => {
     })
     ElMessage.success(t('correctionSubmitSuccess'))
     correctionVisible.value = false
+    // 提交后刷新自己的记录：此时是待审核，只有本人能看到
+    await loadCorrectionRecords()
   } catch (error) {
     console.error('[ModelDetail] 提交纠错失败', error)
     ElMessage.error(t('submitFailed'))
@@ -1248,7 +1325,7 @@ const handleWireframeChange = (enabled) => {
 
 const handleSaveMaterial = async ({ presetName, getParams }) => {
   if (!token.value) {
-    ElMessage.warning(t('loginFirst'))
+    openLoginGuide('修改资料')
     return
   }
 
@@ -1785,17 +1862,21 @@ const handleSaveMaterial = async ({ presetName, getParams }) => {
         padding: 0 14px;
         gap: 6px;
         border-radius: 18px;
-        background: linear-gradient(135deg, #f59e0b, #ea580c);
-        color: #fff;
+        /*
+          琥珀底 #f59e0b 配白字只有 2.2:1，按钮上的字会糊。
+          改用深墨字后对比度到 6:1 以上，琥珀色依旧是视觉焦点。
+        */
+        background: linear-gradient(135deg, #f5b13c, #ea8a2c);
+        color: #3a2408;
         font-size: 13px;
-        font-weight: 600;
-        box-shadow: 0 2px 10px rgba(234, 88, 12, 0.4);
+        font-weight: 700;
+        box-shadow: 0 2px 10px rgba(234, 138, 44, 0.34);
 
         &:hover:not(:disabled) {
-          background: linear-gradient(135deg, #fbbf24, #f97316);
-          color: #fff;
+          background: linear-gradient(135deg, #ffc65c, #f59b3d);
+          color: #3a2408;
           transform: translateY(-1px);
-          box-shadow: 0 4px 14px rgba(234, 88, 12, 0.5);
+          box-shadow: 0 4px 14px rgba(234, 138, 44, 0.44);
         }
 
         &:disabled {
@@ -1993,14 +2074,144 @@ const handleSaveMaterial = async ({ presetName, getParams }) => {
       flex-direction: column;
       gap: 20px;
 
+      /*
+        纠错记录区。
+        只放两类内容：本人提交（可能待审核）和管理员已采纳的公开条目，
+        视觉上用左侧色条区分，避免用户把"还没审核"当成"官方结论"。
+      */
+      .correction-records {
+        padding: 16px;
+        border-radius: var(--v2-radius-lg);
+        border: 1px solid var(--v2-border-soft);
+        background: var(--v2-surface-strong);
+
+        .records-head {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 10px;
+          margin-bottom: 12px;
+
+          h3 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--v2-text-strong);
+          }
+
+          .records-hint {
+            font-size: 11px;
+            color: var(--v2-text-weak);
+          }
+        }
+
+        .record-group + .record-group {
+          margin-top: 14px;
+          padding-top: 12px;
+          border-top: 1px dashed var(--v2-divider);
+        }
+
+        .group-title {
+          font-size: 12px;
+          font-weight: 700;
+          color: var(--v2-text-weak);
+          margin-bottom: 8px;
+          letter-spacing: 0.3px;
+        }
+
+        .record-item {
+          padding: 10px 12px;
+          border-radius: 10px;
+          background: var(--v2-surface-soft);
+          border-left: 3px solid var(--v2-gold);
+
+          & + .record-item {
+            margin-top: 8px;
+          }
+
+          /* 自己的待审核提交用虚边提示"还没公开" */
+          &.is-mine {
+            border-left-color: var(--v2-warn-border);
+            border-left-style: dashed;
+          }
+
+          .record-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 6px;
+          }
+
+          .record-type {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--v2-chip-text);
+          }
+
+          .record-author {
+            font-size: 11px;
+            color: var(--v2-text-weak);
+          }
+
+          .record-status {
+            font-size: 11px;
+            padding: 1px 8px;
+            border-radius: 999px;
+            border: 1px solid var(--v2-info-border);
+            background: var(--v2-info-bg);
+            color: var(--v2-info-text);
+
+            &.status-0 {
+              border-color: var(--v2-warn-border);
+              background: var(--v2-warn-bg);
+              color: var(--v2-warn-text);
+            }
+
+            &.status-1 {
+              border-color: var(--v2-ok-border);
+              background: var(--v2-ok-bg);
+              color: var(--v2-ok-text);
+            }
+
+            &.status-2 {
+              border-color: var(--v2-danger-border);
+              background: var(--v2-danger-bg);
+              color: var(--v2-danger-text);
+            }
+          }
+
+          .record-desc {
+            margin: 0;
+            font-size: 12.5px;
+            line-height: 1.65;
+            color: var(--v2-text-body);
+            white-space: pre-wrap;
+          }
+
+          .record-remark {
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px dashed var(--v2-divider);
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--v2-text-weak);
+
+            strong {
+              color: var(--v2-text-body);
+            }
+          }
+        }
+      }
+
       .model-info-card {
         :deep(.el-card__header) {
-          background: linear-gradient(135deg, #1f4e86 0%, #2d6cb3 100%);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+          background: var(--v2-chip-bg);
+          border-bottom: 1px solid var(--v2-border-soft);
         }
 
         :deep(.el-card__body) {
-          background: linear-gradient(180deg, #1b4272 0%, #163a66 100%);
+          background: var(--v2-surface-strong);
         }
 
         .card-header {
@@ -2010,7 +2221,7 @@ const handleSaveMaterial = async ({ presetName, getParams }) => {
 
           h2 {
             font-size: 20px;
-            color: #f8fafc;
+            color: var(--v2-text-strong);
             margin: 0;
           }
 
@@ -2028,12 +2239,12 @@ const handleSaveMaterial = async ({ presetName, getParams }) => {
 
             .label {
               width: 70px;
-              color: #dbeafe;
+              color: var(--v2-text-weak);
               font-size: 14px;
             }
 
             .value {
-              color: #f8fafc;
+              color: var(--v2-text-body);
               font-size: 14px;
             }
 
@@ -2057,7 +2268,7 @@ const handleSaveMaterial = async ({ presetName, getParams }) => {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           padding-top: 20px;
-          border-top: 1px solid rgba(255, 255, 255, 0.2);
+          border-top: 1px solid var(--v2-divider);
           margin-top: 20px;
           column-gap: 8px;
 
@@ -2066,7 +2277,7 @@ const handleSaveMaterial = async ({ presetName, getParams }) => {
             align-items: center;
             justify-content: center;
             gap: 6px;
-            color: #e2e8f0;
+            color: var(--v2-text-weak);
             font-size: 14px;
             white-space: nowrap;
 
@@ -2095,7 +2306,7 @@ const handleSaveMaterial = async ({ presetName, getParams }) => {
 
     p {
       margin-top: 20px;
-      color: #666;
+      color: var(--v2-text-weak);
     }
   }
 }

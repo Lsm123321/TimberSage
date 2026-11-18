@@ -284,7 +284,7 @@ const resetFeatureCard = (key) => {
   .hero-section {
     height: 430px;
     position: relative;
-    background: #08101f;
+    background: var(--v2-bg-0);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -292,23 +292,27 @@ const resetFeatureCard = (key) => {
     overflow: hidden;
     isolation: isolate;
     border-radius: 20px;
-    border: 1px solid rgba(142, 220, 255, 0.26);
-    box-shadow:
-      0 28px 70px rgba(7, 15, 31, 0.45),
-      inset 0 0 44px rgba(120, 215, 255, 0.1);
+    border: 1px solid var(--v2-border-soft);
+    box-shadow: var(--v2-shadow);
 
     .hero-bg-layer {
       position: absolute;
       inset: -8%;
       z-index: 0;
+      /*
+        Hero 原图的青蓝色很亮，在暖墨国风里会显得突兀。
+        这里叠一层暖色渐变做"做旧"处理：暗色偏焦茶、浅色保持原图通透，
+        不换图也能让整块和下面的茶褐面板连成一体。
+      */
       background-image:
-        linear-gradient(120deg, rgba(8, 14, 28, 0.22), rgba(20, 34, 62, 0.12)),
+        linear-gradient(120deg, rgba(24, 18, 10, 0.34), rgba(40, 30, 16, 0.16)),
         url('@/assets/images/bg.jpg');
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
       transform-origin: center;
       animation: heroBgDrift 16s ease-in-out infinite alternate;
+      filter: saturate(0.82) sepia(0.18) contrast(1.03);
     }
 
     .hero-flow-layer {
@@ -316,7 +320,7 @@ const resetFeatureCard = (key) => {
       inset: 0;
       z-index: 1;
       pointer-events: none;
-      background: linear-gradient(112deg, transparent 0%, rgba(124, 224, 255, 0.2) 46%, transparent 80%);
+      background: linear-gradient(112deg, transparent 0%, rgba(201, 169, 97, 0.2) 46%, transparent 80%);
       transform: translateX(-110%);
       animation: heroFlow 6s linear infinite;
     }
@@ -333,8 +337,8 @@ const resetFeatureCard = (key) => {
         width: 2px;
         height: 240px;
         border-radius: 999px;
-        background: linear-gradient(180deg, rgba(125, 236, 255, 0), rgba(125, 236, 255, 0.95), rgba(125, 236, 255, 0));
-        box-shadow: 0 0 22px rgba(125, 236, 255, 0.6);
+        background: linear-gradient(180deg, rgba(232, 213, 172, 0), rgba(232, 213, 172, 0.95), rgba(232, 213, 172, 0));
+        box-shadow: 0 0 22px rgba(232, 213, 172, 0.6);
         opacity: 0.85;
       }
 
@@ -374,8 +378,8 @@ const resetFeatureCard = (key) => {
         width: var(--size);
         height: var(--size);
         border-radius: 999px;
-        background: radial-gradient(circle, rgba(168, 241, 255, 0.95), rgba(168, 241, 255, 0));
-        box-shadow: 0 0 14px rgba(120, 215, 255, 0.7);
+        background: radial-gradient(circle, rgba(240, 226, 192, 0.95), rgba(240, 226, 192, 0));
+        box-shadow: 0 0 14px rgba(201, 169, 97, 0.7);
         animation: particleFloat var(--duration) ease-in-out var(--delay) infinite;
       }
     }
@@ -386,8 +390,8 @@ const resetFeatureCard = (key) => {
       z-index: 2;
       pointer-events: none;
       background:
-        radial-gradient(circle at var(--hero-pointer-x) var(--hero-pointer-y), rgba(148, 224, 255, 0.26), rgba(148, 224, 255, 0) 34%),
-        radial-gradient(circle at calc(var(--hero-pointer-x) - 10%) calc(var(--hero-pointer-y) + 12%), rgba(128, 179, 255, 0.14), rgba(128, 179, 255, 0) 38%);
+        radial-gradient(circle at var(--hero-pointer-x) var(--hero-pointer-y), rgba(232, 213, 172, 0.26), rgba(232, 213, 172, 0) 34%),
+        radial-gradient(circle at calc(var(--hero-pointer-x) - 10%) calc(var(--hero-pointer-y) + 12%), rgba(124, 156, 146, 0.14), rgba(124, 156, 146, 0) 38%);
       transition: background 140ms ease;
     }
 
@@ -397,8 +401,8 @@ const resetFeatureCard = (key) => {
       inset: -1px;
       z-index: 1;
       pointer-events: none;
-      border: 1px solid rgba(106, 227, 255, 0.34);
-      box-shadow: inset 0 0 24px rgba(60, 170, 255, 0.2);
+      border: 1px solid rgba(201, 169, 97, 0.34);
+      box-shadow: inset 0 0 24px rgba(201, 169, 97, 0.2);
     }
 
     &::after {
@@ -487,14 +491,17 @@ const resetFeatureCard = (key) => {
   }
 
   .hot-keywords-section {
-    background: rgba(12, 18, 34, 0.62);
+    /*
+      原来这里写死 rgba(12,18,34,.62) 深蓝底 + 白字，浅色主题切换后整块还是深色，
+      和周围宣纸白完全不搭。改成引用主题面板 token，深浅两套各自成立：
+      深色是墨玉底 + 暖金字，浅色是奶白底 + 深墨字。
+    */
+    background: var(--v2-surface-strong);
     padding: 20px 30px;
-    border-radius: 10px;
+    border-radius: var(--v2-radius-lg);
     margin-bottom: 20px;
-    border: 1px solid rgba(136, 220, 255, 0.22);
-    box-shadow:
-      0 18px 40px rgba(3, 7, 18, 0.35),
-      inset 0 0 22px rgba(120, 215, 255, 0.08);
+    border: 1px solid var(--v2-border-soft);
+    box-shadow: var(--v2-shadow-soft);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
 
@@ -503,9 +510,9 @@ const resetFeatureCard = (key) => {
 
       .section-title {
         font-size: 16px;
-        color: rgba(235, 248, 255, 0.92);
-        letter-spacing: 0.2px;
-        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        color: var(--v2-text-strong);
       }
     }
 
@@ -518,19 +525,17 @@ const resetFeatureCard = (key) => {
         cursor: pointer;
         padding: 8px 14px;
         border-radius: 999px;
-        border: 1px solid rgba(144, 224, 255, 0.24);
-        background: linear-gradient(135deg, rgba(92, 201, 255, 0.22), rgba(141, 114, 255, 0.18));
-        color: rgba(245, 252, 255, 0.96);
         font-weight: 650;
         letter-spacing: 0.2px;
-        text-shadow: 0 1px 10px rgba(0, 0, 0, 0.22);
-        transition: transform 140ms ease, opacity 140ms ease, background 140ms ease, border-color 140ms ease;
+        color: var(--v2-chip-text);
+        border: 1px solid var(--v2-chip-border);
+        background: var(--v2-chip-bg);
+        transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
 
         &:hover {
-          opacity: 0.96;
           transform: translateY(-1px);
-          border-color: rgba(170, 235, 255, 0.45);
-          background: linear-gradient(135deg, rgba(92, 201, 255, 0.3), rgba(141, 114, 255, 0.26));
+          border-color: var(--v2-gold);
+          background: color-mix(in srgb, var(--v2-gold) 24%, transparent);
         }
       }
     }
@@ -551,11 +556,12 @@ const resetFeatureCard = (key) => {
 
   .models-section,
   .popular-section {
-    background: white;
+    background: var(--v2-surface-strong);
     padding: 30px;
-    border-radius: 10px;
+    border-radius: var(--v2-radius-lg);
     margin-bottom: 20px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--v2-border-soft);
+    box-shadow: var(--v2-shadow-soft);
 
     .section-header {
       display: flex;
@@ -571,20 +577,17 @@ const resetFeatureCard = (key) => {
 
       h2 {
         font-size: 20px;
-        color: #333;
+        color: var(--v2-text-strong);
       }
     }
   }
 
   .feature-section {
-    background:
-      radial-gradient(circle at 12% 18%, rgba(124, 224, 255, 0.14), transparent 42%),
-      radial-gradient(circle at 82% 24%, rgba(102, 126, 234, 0.14), transparent 46%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.92) 100%);
+    background: var(--v2-surface-strong);
     padding: 34px 34px 28px;
-    border-radius: 14px;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    border-radius: var(--v2-radius-lg);
+    border: 1px solid var(--v2-border-soft);
+    box-shadow: var(--v2-shadow-soft);
     overflow: hidden;
 
     .feature-header {
@@ -597,14 +600,14 @@ const resetFeatureCard = (key) => {
       .title-wrap {
         h2 {
           font-size: 22px;
-          color: #0f172a;
+          color: var(--v2-text-strong);
           margin: 0 0 8px;
           letter-spacing: 0.2px;
         }
 
         .subtitle {
           margin: 0;
-          color: rgba(51, 65, 85, 0.88);
+          color: var(--v2-text-weak);
           line-height: 1.6;
           font-size: 13px;
         }
@@ -619,9 +622,9 @@ const resetFeatureCard = (key) => {
         .pill {
           padding: 8px 12px;
           border-radius: 999px;
-          background: rgba(15, 23, 42, 0.06);
-          border: 1px solid rgba(15, 23, 42, 0.08);
-          color: rgba(15, 23, 42, 0.78);
+          background: var(--v2-chip-bg);
+          border: 1px solid var(--v2-chip-border);
+          color: var(--v2-chip-text);
           font-size: 12px;
           line-height: 1;
           white-space: nowrap;
@@ -645,9 +648,9 @@ const resetFeatureCard = (key) => {
       width: 100%;
       min-height: 186px;
       border-radius: 14px;
-      border: 1px solid rgba(15, 23, 42, 0.08);
-      background: rgba(255, 255, 255, 0.74);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+      border: 1px solid var(--v2-border-soft);
+      background: var(--v2-surface-soft);
+      box-shadow: inset 0 1px 0 var(--v2-inset-line);
       transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease;
       overflow: hidden;
 
@@ -656,15 +659,15 @@ const resetFeatureCard = (key) => {
         position: absolute;
         inset: 0;
         pointer-events: none;
-        background: radial-gradient(circle at var(--card-glow-x, 18%) var(--card-glow-y, 22%), rgba(124, 224, 255, 0.2), transparent 46%);
+        background: radial-gradient(circle at var(--card-glow-x, 18%) var(--card-glow-y, 22%), rgba(210, 176, 111, 0.18), transparent 46%);
         opacity: 0;
         transition: opacity 0.22s ease;
       }
 
       &:hover {
-        border-color: rgba(102, 126, 234, 0.26);
-        background: rgba(255, 255, 255, 0.9);
-        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
+        border-color: var(--v2-chip-border);
+        background: var(--v2-surface-strong);
+        box-shadow: var(--v2-shadow-soft);
 
         &::after {
           opacity: 1;
@@ -678,13 +681,13 @@ const resetFeatureCard = (key) => {
         display: grid;
         place-items: center;
         flex: 0 0 auto;
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.22), rgba(124, 224, 255, 0.18));
-        border: 1px solid rgba(102, 126, 234, 0.22);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+        background: var(--v2-chip-bg);
+        border: 1px solid var(--v2-chip-border);
+        box-shadow: inset 0 1px 0 var(--v2-inset-line);
 
         .el-icon {
           font-size: 22px;
-          color: rgba(15, 23, 42, 0.8);
+          color: var(--v2-gold);
         }
       }
 
@@ -698,13 +701,13 @@ const resetFeatureCard = (key) => {
         h3 {
           margin: 1px 0 6px;
           font-size: 15px;
-          color: #0f172a;
+          color: var(--v2-text-strong);
           letter-spacing: 0.2px;
         }
 
         p {
           margin: 0 0 10px;
-          color: rgba(51, 65, 85, 0.9);
+          color: var(--v2-text-body);
           font-size: 12.5px;
           line-height: 1.65;
           flex: 1;
@@ -715,15 +718,15 @@ const resetFeatureCard = (key) => {
           align-items: center;
           gap: 8px;
           margin-top: auto;
-          color: rgba(51, 65, 85, 0.72);
+          color: var(--v2-text-weak);
           font-size: 12px;
 
           .meta-dot {
             width: 6px;
             height: 6px;
             border-radius: 999px;
-            background: rgba(102, 126, 234, 0.62);
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12);
+            background: var(--v2-gold);
+            box-shadow: 0 0 0 3px var(--v2-chip-bg);
           }
         }
       }

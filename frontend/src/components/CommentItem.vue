@@ -185,18 +185,18 @@ const formatTime = (dateStr) => {
 
         .username {
           font-weight: 500;
-          color: #333;
+          color: var(--v2-text-strong);
           font-size: 14px;
         }
 
         .time {
-          color: #999;
+          color: var(--v2-text-weak);
           font-size: 12px;
         }
       }
 
       .comment-content {
-        color: #333;
+        color: var(--v2-text-body);
         font-size: 14px;
         line-height: 1.6;
         margin-bottom: 8px;
@@ -211,13 +211,13 @@ const formatTime = (dateStr) => {
           display: flex;
           align-items: center;
           gap: 4px;
-          color: #999;
+          color: var(--v2-text-weak);
           font-size: 13px;
           cursor: pointer;
           transition: color 0.2s;
 
           &:hover {
-            color: #667eea;
+            color: var(--v2-gold);
           }
 
           &.liked {
@@ -246,7 +246,7 @@ const formatTime = (dateStr) => {
   .comment-replies {
     margin-left: 52px;
     padding-left: 15px;
-    border-left: 2px solid #f0f0f0;
+    border-left: 2px solid var(--v2-divider);
     margin-top: 10px;
 
     .reply-wrapper {
@@ -255,7 +255,7 @@ const formatTime = (dateStr) => {
 
     .load-more-replies {
       padding: 10px 0;
-      color: #667eea;
+      color: var(--v2-gold);
       font-size: 13px;
       cursor: pointer;
 

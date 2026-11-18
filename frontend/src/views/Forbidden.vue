@@ -23,7 +23,8 @@
 }
 
 .forbidden-card {
-  width: 520px;
+  /* 固定 520px 在手机上会横向溢出，改成跟随视口并留边距 */
+  width: min(520px, calc(100vw - 32px));
   text-align: center;
 }
 

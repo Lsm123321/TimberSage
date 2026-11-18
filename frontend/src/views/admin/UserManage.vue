@@ -607,12 +607,12 @@ const rejectApplication = async (application) => {
 
     .avatar-pending-tip {
       font-size: 12px;
-      color: #b45309;
+      color: var(--v2-warn-text);
       line-height: 1.4;
       padding: 4px 8px;
       border-radius: 6px;
-      background: #fffbeb;
-      border: 1px solid #fde68a;
+      background: var(--v2-warn-bg);
+      border: 1px solid var(--v2-warn-border);
     }
 
     .avatar-input {
@@ -635,31 +635,33 @@ const rejectApplication = async (application) => {
     max-width: 148px;
   }
 
-  /* In this page, the table is white background.
-     Make role select readable like "email" column (dark text). */
+  /*
+    角色下拉原来按「表格是白底」写成白底深字，
+    现在表格跟随主题，这里的输入框也必须跟着走，否则深色下会白块突兀。
+  */
   :deep(.el-table .role-select .el-select__wrapper) {
-    background: rgba(255, 255, 255, 0.98) !important;
-    border: 1px solid rgba(15, 23, 42, 0.18) !important;
-    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06) !important;
+    background: var(--v2-surface-input) !important;
+    border: 1px solid var(--v2-border-soft) !important;
+    box-shadow: none !important;
   }
 
   :deep(.el-table .role-select .el-select__selected-item),
   :deep(.el-table .role-select .el-select__placeholder) {
-    color: rgba(15, 23, 42, 0.86) !important;
+    color: var(--v2-text-body) !important;
     font-weight: 650 !important;
   }
 
   :deep(.el-table .role-select .el-select__caret) {
-    color: rgba(15, 23, 42, 0.6) !important;
+    color: var(--v2-text-weak) !important;
   }
 
   :deep(.el-table .role-select .el-select__wrapper.is-focused) {
-    border-color: rgba(102, 126, 234, 0.55) !important;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.14) !important;
+    border-color: var(--v2-gold) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--v2-gold) 18%, transparent) !important;
   }
 
   .review-remark {
-    color: #999;
+    color: var(--v2-text-weak);
     font-size: 12px;
   }
 }

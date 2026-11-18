@@ -178,19 +178,19 @@ onMounted(() => loadData())
     .title {
       font-size: 16px;
       font-weight: 800;
-      color: rgba(255, 255, 255, 0.92);
+      color: var(--v2-text-strong);
     }
     .desc {
       margin-top: 6px;
       font-size: 13px;
-      color: rgba(255, 255, 255, 0.72);
+      color: var(--v2-text-weak);
     }
   }
 
   .v2-card {
-    border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.06);
+    border-radius: var(--v2-radius-lg);
+    border: 1px solid var(--v2-border-soft);
+    background: var(--v2-surface);
   }
 
   .toolbar {
@@ -235,12 +235,16 @@ onMounted(() => loadData())
     margin-top: 12px;
   }
 
-  /* 局部修复：全局浅色文字覆盖导致状态列/筛选框/表格发白看不清 */
+  /*
+    表格配色跟随主题 token。
+    原来这里的变量写死成白底深字（为了修深色下的看不清），
+    结果浅色主题反而正常、深色主题还得靠另一套覆盖；现在一套变量管两种主题。
+  */
   :deep(.v2-table) {
-    --sf-table-bg: rgba(255, 255, 255, 0.92);
-    --sf-table-bg-alt: rgba(248, 250, 252, 0.92);
-    --sf-table-border: rgba(15, 23, 42, 0.10);
-    --sf-table-text: #1f2937;
+    --sf-table-bg: var(--v2-surface-soft);
+    --sf-table-bg-alt: var(--v2-surface-hover);
+    --sf-table-border: var(--v2-divider);
+    --sf-table-text: var(--v2-text-body);
 
     .el-table {
       background: transparent !important;
@@ -255,15 +259,15 @@ onMounted(() => loadData())
 
     .el-table__header-wrapper th.el-table__cell {
       background: var(--sf-table-bg) !important;
-      color: rgba(15, 23, 42, 0.82) !important;
+      color: var(--v2-text-strong) !important;
       font-weight: 800;
       border-bottom: 1px solid var(--sf-table-border) !important;
     }
 
     .el-table__body-wrapper td.el-table__cell {
-      background: var(--sf-table-bg) !important;
+      background: transparent !important;
       color: var(--sf-table-text) !important;
-      border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+      border-bottom: 1px solid var(--sf-table-border) !important;
     }
 
     .el-table__body tr.el-table__row--striped td.el-table__cell {
@@ -275,14 +279,22 @@ onMounted(() => loadData())
     }
   }
 
-  :deep(.status-select .el-select__wrapper),
+  :deep(.status-select .el-select__wrapper) {
+    background: var(--v2-surface-input) !important;
+    box-shadow: 0 0 0 1px var(--v2-border-soft) inset !important;
+  }
+
+  :deep(.status-select .el-select__placeholder),
+  :deep(.status-select .el-select__selected-item) {
+    color: var(--v2-text-body) !important;
+  }
+
+  /* 处理对话框本身是固定的宣纸白，里面的输入控件保持深字，不参与主题切换 */
   :deep(.site-feedback-dialog .el-select__wrapper) {
     background: #ffffff !important;
     box-shadow: 0 0 0 1px rgba(100, 116, 139, 0.32) inset !important;
   }
 
-  :deep(.status-select .el-select__placeholder),
-  :deep(.status-select .el-select__selected-item),
   :deep(.site-feedback-dialog .el-select__placeholder),
   :deep(.site-feedback-dialog .el-select__selected-item) {
     color: #334155 !important;
@@ -312,27 +324,28 @@ onMounted(() => loadData())
     line-height: 22px;
     font-weight: 800;
     letter-spacing: 0.2px;
-    border: 1px solid rgba(15, 23, 42, 0.16) !important;
-    background: rgba(15, 23, 42, 0.05) !important;
-    color: rgba(15, 23, 42, 0.88) !important;
+    border: 1px solid var(--v2-border-soft) !important;
+    background: var(--v2-surface-soft) !important;
+    color: var(--v2-text-body) !important;
   }
 
+  /* 状态语义色统一走主题 token，深色下不会出现深棕字压深底 */
   :deep(.status-tag.el-tag--success) {
-    border-color: rgba(16, 185, 129, 0.30) !important;
-    background: rgba(16, 185, 129, 0.12) !important;
-    color: rgba(6, 95, 70, 0.92) !important;
+    border-color: var(--v2-ok-border) !important;
+    background: var(--v2-ok-bg) !important;
+    color: var(--v2-ok-text) !important;
   }
 
   :deep(.status-tag.el-tag--warning) {
-    border-color: rgba(245, 158, 11, 0.32) !important;
-    background: rgba(245, 158, 11, 0.14) !important;
-    color: rgba(120, 53, 15, 0.92) !important;
+    border-color: var(--v2-warn-border) !important;
+    background: var(--v2-warn-bg) !important;
+    color: var(--v2-warn-text) !important;
   }
 
   :deep(.status-tag.el-tag--info) {
-    border-color: rgba(100, 116, 139, 0.30) !important;
-    background: rgba(100, 116, 139, 0.12) !important;
-    color: rgba(30, 41, 59, 0.90) !important;
+    border-color: var(--v2-info-border) !important;
+    background: var(--v2-info-bg) !important;
+    color: var(--v2-info-text) !important;
   }
 }
 </style>

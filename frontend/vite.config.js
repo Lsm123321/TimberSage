@@ -15,7 +15,8 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        // 默认连本地后端；端口被占用时可用 VITE_API_PROXY_TARGET 指向 Docker 的 8180
+        target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
         changeOrigin: true
       },
       // 开发模式下反代 Docker MinIO（19100→9000），与生产 nginx.conf 的 /minio/ 行为一致，

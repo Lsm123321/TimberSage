@@ -31,13 +31,12 @@
         </el-menu-item>
 
         <!--
-          「我的收藏」和「个人中心」都指向 /profile，只是 tab 不同。
-          el-menu 的 index 必须唯一，否则两项会同时高亮；
-          这里用带 tab 的虚拟 index，再由 activeMenu 计算属性映射回真实路由。
+          原来这里是「我的收藏」。收藏入口已收进个人中心的标签页，
+          这个位置换成 AI 知识问答，图标用 A 开头的对话气泡以示区分。
         -->
-        <el-menu-item index="/profile?tab=favorites" :route="{ path: '/profile', query: { tab: 'favorites' } }">
-          <el-icon><Star /></el-icon>
-          <template #title>{{ t('favorites') }}</template>
+        <el-menu-item index="/ai-chat">
+          <el-icon><ChatLineSquare /></el-icon>
+          <template #title>{{ t('aiChat') }}</template>
         </el-menu-item>
 
         <el-menu-item index="/profile" :route="{ path: '/profile' }">
@@ -53,11 +52,6 @@
         <el-menu-item index="/about">
           <el-icon><InfoFilled /></el-icon>
           <template #title>{{ t('aboutMenu') }}</template>
-        </el-menu-item>
-
-        <el-menu-item index="/admin" v-if="isAdmin">
-          <el-icon><Setting /></el-icon>
-          <template #title>{{ t('admin') }}</template>
         </el-menu-item>
       </el-menu>
 
@@ -174,7 +168,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useDebounceFn } from '@vueuse/core'
 import { ElMessage } from 'element-plus'
-import { House, OfficeBuilding, ChatDotRound, Star, User, Fold, Expand, ArrowDown, Setting, Search, TrendCharts, InfoFilled, Grid, Box, CollectionTag, Location } from '@element-plus/icons-vue'
+import { House, OfficeBuilding, ChatDotRound, ChatLineSquare, User, Fold, Expand, ArrowDown, Search, TrendCharts, InfoFilled, Grid, Box, CollectionTag, Location } from '@element-plus/icons-vue'
 import FloatingUiControls from '@/components/FloatingUiControls.vue'
 import { useUiPreferences } from '@/composables/useUiPreferences'
 import { usePageSearchStore } from '@/stores/pageSearch'
@@ -199,7 +193,6 @@ const currentRoute = computed(() => {
   if (route.meta?.titleKey) return t(route.meta.titleKey)
   return route.meta?.title || (language.value === 'en' ? 'Immersive Exhibition' : '沉浸式展陈')
 })
-const isAdmin = computed(() => authStore.userInfo?.role === 'admin')
 const showRoleUpgradeEntry = computed(() => authStore.userInfo?.role === 'user' || authStore.userInfo?.role === 'contributor')
 
 /**
@@ -393,13 +386,13 @@ onUnmounted(() => {
   &::before {
     top: -120px;
     right: -80px;
-    background: radial-gradient(circle, rgba(124, 108, 255, 0.52), rgba(124, 108, 255, 0));
+    background: radial-gradient(circle, rgba(201, 169, 97, 0.40), rgba(201, 169, 97, 0));
   }
 
   &::after {
     left: -130px;
     bottom: -140px;
-    background: radial-gradient(circle, rgba(59, 204, 255, 0.42), rgba(59, 204, 255, 0));
+    background: radial-gradient(circle, rgba(124, 156, 146, 0.34), rgba(124, 156, 146, 0));
     animation-duration: 15s;
   }
 
@@ -414,6 +407,17 @@ onUnmounted(() => {
 
     &.is-collapse {
       width: 78px;
+
+      /*
+        折叠后 logo-text 被 v-if 移除，只剩 44px 的图标。
+        胶囊内部宽度约 54px（78 - 左右 padding/边框），默认左对齐会让图标贴左、
+        右边空一条，看起来歪了。这里改成居中，并把左右 padding 收窄。
+      */
+      .logo {
+        justify-content: center;
+        padding: 14px 0;
+        gap: 0;
+      }
     }
 
     .logo {
@@ -431,7 +435,7 @@ onUnmounted(() => {
         inset: -40%;
         background:
           radial-gradient(circle at 30% 40%, rgba(214, 183, 122, 0.35), transparent 55%),
-          radial-gradient(circle at 65% 20%, rgba(127, 198, 224, 0.28), transparent 60%);
+          radial-gradient(circle at 65% 20%, rgba(124, 156, 146, 0.28), transparent 60%);
         opacity: 0.65;
         filter: blur(18px);
         animation: v2-float 5.8s var(--v2-ease) infinite alternate;
@@ -499,7 +503,7 @@ onUnmounted(() => {
           position: absolute;
           inset: 0;
           border-radius: 18px;
-          background: linear-gradient(90deg, rgba(214, 183, 122, 0.22), rgba(127, 198, 224, 0.14), rgba(177, 59, 47, 0.18));
+          background: linear-gradient(90deg, rgba(214, 183, 122, 0.22), rgba(124, 156, 146, 0.14), rgba(177, 59, 47, 0.18));
           opacity: 0;
           filter: blur(0.2px);
           transition: opacity 220ms var(--v2-ease);
@@ -589,7 +593,7 @@ onUnmounted(() => {
         position: absolute;
         inset: -1px;
         border-radius: inherit;
-        background: linear-gradient(90deg, rgba(214, 183, 122, 0.20), rgba(127, 198, 224, 0.14), rgba(177, 59, 47, 0.18));
+        background: linear-gradient(90deg, rgba(214, 183, 122, 0.20), rgba(124, 156, 146, 0.14), rgba(177, 59, 47, 0.18));
         opacity: 0.35;
         filter: blur(10px);
         pointer-events: none;
@@ -703,7 +707,7 @@ onUnmounted(() => {
               width: 10px;
               height: 10px;
               border-radius: 999px;
-              background: linear-gradient(180deg, rgba(214, 183, 122, 0.9), rgba(127, 198, 224, 0.7));
+              background: linear-gradient(180deg, rgba(214, 183, 122, 0.9), rgba(124, 156, 146, 0.7));
               box-shadow: 0 0 0 6px rgba(214, 183, 122, 0.06);
               flex-shrink: 0;
             }
@@ -776,7 +780,7 @@ onUnmounted(() => {
 
         &::-webkit-scrollbar-thumb {
           border-radius: 999px;
-          background: linear-gradient(180deg, rgba(214, 183, 122, 0.45), rgba(127, 198, 224, 0.45));
+          background: linear-gradient(180deg, rgba(214, 183, 122, 0.45), rgba(124, 156, 146, 0.45));
         }
     }
   }
@@ -970,39 +974,5 @@ onUnmounted(() => {
 }
 </style>
 
-<style lang="scss">
-.v2-user-dropdown {
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  background: rgba(22, 28, 40, 0.88) !important;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.42) !important;
-  backdrop-filter: blur(12px) saturate(1.2);
-  -webkit-backdrop-filter: blur(12px) saturate(1.2);
-
-  /* Element Plus dropdown variables */
-  --el-dropdown-menu-box-shadow: none;
-  --el-dropdown-menuItem-hover-fill: rgba(255, 255, 255, 0.1);
-  --el-dropdown-menuItem-hover-color: #ffffff;
-  --el-dropdown-menuItem-divided-color: rgba(255, 255, 255, 0.16);
-  --el-text-color-primary: rgba(241, 245, 249, 0.94);
-}
-
-.v2-user-dropdown .el-dropdown-menu {
-  background: transparent !important;
-  padding: 8px 6px !important;
-}
-
-.v2-user-dropdown .el-dropdown-menu__item {
-  color: rgba(241, 245, 249, 0.94) !important;
-  font-weight: 650;
-}
-
-.v2-user-dropdown .el-dropdown-menu__item:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: #ffffff !important;
-}
-
-.v2-user-dropdown .el-dropdown-menu__item--divided::before {
-  background-color: rgba(255, 255, 255, 0.16) !important;
-}
-</style>
+<!-- 用户下拉菜单样式统一维护在 assets/styles/main.scss，此处不再重复定义 -->
 

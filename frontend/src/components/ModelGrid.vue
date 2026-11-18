@@ -59,6 +59,7 @@ import { useModelStore } from '@/stores/model'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
 import { useUiPreferences } from '@/composables/useUiPreferences'
+import { openLoginGuide } from '@/composables/useLoginGuide'
 
 defineProps({
   models: {
@@ -90,15 +91,15 @@ const goToDetail = (id) => {
   router.push(`/buildings/${id}`)
 }
 
-const ensureLoggedIn = () => {
+const ensureLoggedIn = (action = '操作') => {
   if (authStore.token) return true
-  ElMessage.warning('请先登录后再操作')
-  router.push('/login')
+  // 只读浏览不拦，写操作统一弹登录引导，而不是直接跳走
+  openLoginGuide(action)
   return false
 }
 
 const handleToggleLike = async (model) => {
-  if (!ensureLoggedIn()) return
+  if (!ensureLoggedIn('点赞')) return
   const prevLiked = !!model.isLiked
   const prevCount = Number(model.likeCount) || 0
   model.isLiked = !prevLiked
@@ -112,7 +113,7 @@ const handleToggleLike = async (model) => {
 }
 
 const handleToggleFavorite = async (model) => {
-  if (!ensureLoggedIn()) return
+  if (!ensureLoggedIn('收藏')) return
   const prevFavorite = !!model.isFavorite
   const prevCount = Number(model.favoriteCount) || 0
   model.isFavorite = !prevFavorite
@@ -174,11 +175,10 @@ const resetCardPointer = (id) => {
     --img-shift-x: 0px;
     --img-shift-y: 0px;
     position: relative;
-    background:
-      radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.6), transparent 42%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.82));
+    /* 卡片底色跟随主题：深色是墨玉玻璃，浅色是宣纸白 */
+    background: var(--v2-surface-strong);
     border-radius: 14px;
-    border: 1px solid rgba(30, 41, 59, 0.12);
+    border: 1px solid var(--v2-border-soft);
     overflow: hidden;
     cursor: pointer;
     transition:
@@ -189,26 +189,24 @@ const resetCardPointer = (id) => {
     margin-bottom: 20px;
     transform-style: preserve-3d;
     box-shadow:
-      0 10px 24px rgba(15, 23, 42, 0.1),
-      inset 0 1px 0 rgba(255, 255, 255, 0.75);
+      var(--v2-shadow-soft),
+      inset 0 1px 0 var(--v2-inset-line);
 
     &::before {
       content: '';
       position: absolute;
       inset: 0;
       pointer-events: none;
-      background: radial-gradient(circle at var(--card-glow-x) var(--card-glow-y), rgba(120, 205, 255, 0.2), rgba(120, 205, 255, 0) 42%);
+      background: radial-gradient(circle at var(--card-glow-x) var(--card-glow-y), color-mix(in srgb, var(--v2-gold) 18%, transparent), transparent 42%);
       opacity: 0;
       transition: opacity 180ms ease;
       z-index: 1;
     }
 
     &:hover {
-      border-color: rgba(102, 126, 234, 0.28);
-      background:
-        radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.7), transparent 42%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.86));
-      box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+      border-color: var(--v2-chip-border);
+      background: var(--v2-surface-strong);
+      box-shadow: var(--v2-shadow);
 
       .card-overlay {
         opacity: 1;
@@ -240,8 +238,8 @@ const resetCardPointer = (id) => {
         right: 0;
         bottom: 0;
         background:
-          radial-gradient(circle at 50% 42%, rgba(122, 221, 255, 0.2), rgba(122, 221, 255, 0)),
-          rgba(4, 8, 18, 0.52);
+          radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--v2-gold) 20%, transparent), transparent),
+          color-mix(in srgb, var(--v2-bg-0) 52%, transparent);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -250,9 +248,9 @@ const resetCardPointer = (id) => {
         z-index: 2;
 
         .view-btn {
-          color: white;
-          border: 1px solid rgba(255, 255, 255, 0.88);
-          background: rgba(255, 255, 255, 0.12);
+          color: var(--v2-text-strong);
+          border: 1px solid var(--v2-chip-border);
+          background: color-mix(in srgb, var(--v2-bg-0) 46%, transparent);
           backdrop-filter: blur(5px);
           padding: 8px 20px;
           border-radius: 999px;
@@ -278,7 +276,7 @@ const resetCardPointer = (id) => {
 
       .model-name {
         font-size: 16px;
-        color: #0f172a;
+        color: var(--v2-text-strong);
         margin-bottom: 8px;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -286,13 +284,13 @@ const resetCardPointer = (id) => {
       }
 
       .dynasty {
-        color: #5b6cd7;
+        color: var(--v2-gold);
         font-size: 14px;
         margin-bottom: 5px;
       }
 
       .location {
-        color: #64748b;
+        color: var(--v2-text-weak);
         font-size: 12px;
         margin-bottom: 10px;
         overflow: hidden;
@@ -303,7 +301,7 @@ const resetCardPointer = (id) => {
       .card-stats {
         display: flex;
         gap: 15px;
-        color: #64748b;
+        color: var(--v2-text-weak);
         font-size: 12px;
 
         span {
@@ -317,11 +315,11 @@ const resetCardPointer = (id) => {
           transition: color 0.2s ease;
 
           &:hover {
-            color: #5b6cd7;
+            color: var(--v2-gold);
           }
 
           &.active {
-            color: #5b6cd7;
+            color: var(--v2-gold);
           }
         }
       }
