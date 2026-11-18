@@ -74,8 +74,8 @@ cp .env.example .env
 然后改 `.env` 里这几项：
 
 - `MYSQL_ROOT_PASSWORD` / `MINIO_ROOT_PASSWORD`：设成你自己的密码
-- `SPRING_DEEPSEEK_API_KEY`：DeepSeek 的 key，不填的话 AI 导览会报错，但其余功能正常
-- `ZHIPU_API_KEY`：智谱的 key，不填则前端降级到浏览器自带朗读
+- `SPRING_DEEPSEEK_API_KEY`：DeepSeek 的 key，不填 AI 导览会报错，但其余功能正常
+- `ZHIPU_API_KEY`：智谱的 key，不填前端降级到浏览器自带朗读
 
 后端本地开发还需要一份凭据文件（`application.yml` 里 `profiles.active` 默认读 `local`）：
 
@@ -83,13 +83,13 @@ cp .env.example .env
 # backend/config/application-local.yml —— 这个文件被 .gitignore 排除
 spring:
   datasource:
-    password: 你的MySQL密码
+    password: MySQL密码
   minio:
-    secret-key: 你的MinIO密码
+    secret-key: MinIO密码
 deepseek:
-  api-key: 你的DeepSeek Key
+  api-key: DeepSeek Key
 zhipu:
-  api-key: 你的智谱Key
+  api-key: 智谱Key
 ```
 
 ### 2. 起中间件
@@ -136,7 +136,7 @@ docker compose up -d --build
 
 ---
 
-## 几个值得说的实现
+## 创新实现
 
 ### 四季动态场景
 
@@ -210,4 +210,4 @@ DeepSeek 在高峰期会堵到几分钟不出首字，所以加了双通道：�
 
 ## 许可
 
-课程/毕业设计用途。第三方模型素材版权归原作者，仓库里未包含。
+课程/毕业/比赛设计用途。第三方模型素材版权归原作者，仓库里未包含。
